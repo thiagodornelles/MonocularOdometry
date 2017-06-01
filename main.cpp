@@ -16,6 +16,9 @@ int main(int argc, char *argv[]) {
     Ptr<Feature2D> orb = ORB::create();
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
     VideoCapture cap("../../../video1.avi");
+//    481.20,	0,          319.50
+//    0,        -480.00,	239.50
+//    0,        0,          1
     Mat frame1, frame2, output;    
     Mat desc1, desc2;
     vector<KeyPoint> kps1, kps2;
