@@ -14,7 +14,7 @@ using namespace cv;
 
 int main(int argc, char *argv[]) {
 
-    Ptr<Feature2D> orb = ORB::create(200);
+    Ptr<Feature2D> orb = ORB::create(200,);
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
     VideoCapture cap("../../../video2.avi");
 //    481.20,	0,          319.50
