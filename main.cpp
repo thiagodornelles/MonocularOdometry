@@ -15,6 +15,8 @@
 using namespace std;
 using namespace cv;
 
+enum Matcher {KNN, Optical};
+
 double getAbsoluteScale(int frame_id, char *address){
 
   string line;
@@ -74,23 +76,32 @@ void featureTrackingOpticalFlow(Mat img1, Mat img2, vector<Point2f>& points1, ve
     }
 }
 
+void featureDetection(Mat img_1, vector<Point2f>& points1)	{   //USA FAST
+  vector<KeyPoint> keypoints_1;
+  int fast_threshold = 20;
+  bool nonmaxSuppression = true;
+  FAST(img_1, keypoints_1, fast_threshold, nonmaxSuppression);
+  KeyPoint::convert(keypoints_1, points1, vector<int>());
+}
+
 int main(int argc, char *argv[]) {
    /*-------COMANDOS----------
     * argv[1] - endereco do video
     * argv[2] - endereco do ground-truth
    */
 
-    Ptr<Feature2D> orb = ORB::create(200);
+    Ptr<Feature2D> orb = ORB::create(600);
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
 
     VideoCapture cap(argv[1]);
 
+    Matcher type_matcher = (!strcmp(argv[3],"KNN"))? KNN:Optical; //selecionando o tipo do matcher (KNN ou Optical)
 
 //    481.20,	0,          319.50
 //    0,        -480.00,	239.50
 //    0,        0,          1
     Mat frame1, frame2, output;
-    Mat traj = Mat::zeros(500, 500, CV_8UC3);;
+    Mat traj = Mat::zeros(500, 500, CV_8UC3);
     Mat desc1, desc2;
     vector<KeyPoint> kps1, kps2;
     vector<Point2f> points1, points2;
@@ -100,6 +111,7 @@ int main(int argc, char *argv[]) {
     Mat t = Mat::zeros(3, 1, CV_64F);
     Mat E;
     Point2d p0 = Point2d(250, 250);
+    vector<uchar> status;
     cap >> frame1;
     int num_frame = 1;
     while(cap.isOpened()){
@@ -108,25 +120,32 @@ int main(int argc, char *argv[]) {
 //        }
         if(frame2.empty()) break;
 
-        orb->detectAndCompute(frame1, noArray(), kps1, desc1, false);
-        orb->detectAndCompute(frame2, noArray(), kps2, desc2, false);
-//        drawKeypoints(frame1, kps1, frame1);
-//        drawKeypoints(frame2, kps2, frame2);
-        matcher->knnMatch(desc1, desc2, matches, 2);
+        if(type_matcher == KNN){
+            orb->detectAndCompute(frame1, noArray(), kps1, desc1, false);
+            orb->detectAndCompute(frame2, noArray(), kps2, desc2, false);
 
-        //Pegando matchings mais confiáveis
-        for (int i = 0; i < matches.size(); ++i) {
-            DMatch d1  = matches[i][0];
-            DMatch d2  = matches[i][1];            
-            if (d1.distance < 0.8 * d2.distance) {
-                vector<DMatch> v;
-                v.push_back(d1);
-                good.push_back(v);
-                KeyPoint kt1 = kps1.at(d1.queryIdx);
-                points1.push_back(kt1.pt);
-                KeyPoint kt2 = kps2.at(d1.trainIdx);
-                points2.push_back(kt2.pt);
+    //        drawKeypoints(frame1, kps1, frame1);
+    //        drawKeypoints(frame2, kps2, frame2);
+
+            matcher->knnMatch(desc1, desc2, matches, 2);
+
+            //Pegando matchings mais confiáveis
+            for (int i = 0; i < matches.size(); ++i) {
+                DMatch d1  = matches[i][0];
+                DMatch d2  = matches[i][1];
+                if (d1.distance < 0.8 * d2.distance) {
+                    vector<DMatch> v;
+                    v.push_back(d1);
+                    good.push_back(v);
+                    KeyPoint kt1 = kps1.at(d1.queryIdx);
+                    points1.push_back(kt1.pt);
+                    KeyPoint kt2 = kps2.at(d1.trainIdx);
+                    points2.push_back(kt2.pt);
+                }
             }
+        }else{  //Usando a abordagem do site
+            featureDetection(frame1,points1);
+            featureTrackingOpticalFlow(frame1, frame2, points1, points2, status);
         }
         if(points1.size() < 10){
             frame2.copyTo(frame1);
@@ -141,12 +160,16 @@ int main(int argc, char *argv[]) {
 //        drawMatches(frame1, kps1, frame2, kps2, good, output);
 //        Point2d pp = Point2d(319.50f, 239.50f);
 //        Point2d pp = Point2d(0, 0);
+
+        //Informacoes da camera
         Point2d pp = Point2d(607.1928, 185.2157);
         float focal = 718.8560;
-        E = findEssentialMat(points1, points2, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
+
         Mat t_f = Mat::zeros(3,1, CV_64F);
         Mat R_f;
-        recoverPose(E, points1, points2, R_f, t_f, focal, pp);
+
+        E = findEssentialMat(points1, points2, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
+        recoverPose(E, points2, points1, R_f, t_f, focal, pp);
         float scale = getAbsoluteScale(num_frame++, argv[2]);
 
 //        cout << R << endl;
