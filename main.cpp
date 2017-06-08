@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
 //    0,        -480.00,	239.50
 //    0,        0,          1
 
-    Mat frame1, frame2, output;
+    Mat frame1, frame2;
     Mat traj = Mat::zeros(500, 500, CV_8UC3);
     Mat desc1, desc2;
     vector<KeyPoint> kps1, kps2;
@@ -199,25 +199,16 @@ int main(int argc, char *argv[]) {
         recoverPose(E, points2, points1, R_f, t_f, focal, pp);
         float scale = getAbsoluteScale(num_frame++, argv[2]);
 
-//        cout << R << endl;
-
-//        cout <<"Num frame:"<<num_frame<<" - Scale:"<< scale << endl;
-
-//        cout<<"R:"<<R_f<<endl;
-//        cout<<"R*T:"<<R_f*t_f<<endl;
-        cout<<"T:"<<t<<endl;
-        cout<<endl;
-
-//         if ((scale>0.1)&&(t_f.at<double>(2) > t_f.at<double>(0)) && (t_f.at<double>(2) > t_f.at<double>(1))) {
+        //ESSE IF FAZ MUITA DIFERENCA NA ESTIMATIVA
+         if ((scale>0.1)&&(t_f.at<double>(2) > t_f.at<double>(0)) && (t_f.at<double>(2) > t_f.at<double>(1))) {
             t = t + scale*(R*t_f);
             R = R_f*R;
+        }
 
-//        }
-
-//        traj.setTo(0);
-        float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)};
-        Point2d p1 = Point2d((int)(t.at<double>(2)*rot[0][0]+t.at<double>(0)*rot[0][1]),(int)(t.at<double>(2)*rot[1][0]+t.at<double>(0)*rot[1][1]));
-        p1 = Point2d(p1.x+150, p1.y+350);
+        float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao do ponto da trajetoria
+        Point2d p1 = Point2d((int)(t.at<double>(2)*rot[0][0]+t.at<double>(0)*rot[0][1]),
+                             (int)(t.at<double>(2)*rot[1][0]+t.at<double>(0)*rot[1][1])); //Ponto rotacionado
+        p1 = Point2d(p1.x+150, p1.y+350); //Transladando o ponto
 
 //        Point2d p2 = Point2d(10*t.at<double>(1)+50, 10*t.at<double>(2)+50);
         circle(traj, p1, 1, cvScalar(0,0,255), 2);
