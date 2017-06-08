@@ -17,6 +17,7 @@ using namespace cv;
 
 enum Matcher {KNN, Optical};
 
+//Calcula o 'Scale' de uma imagem para outra
 double getAbsoluteScale(int frame_id, char *address){
 
   string line;
@@ -54,6 +55,7 @@ double getAbsoluteScale(int frame_id, char *address){
 
 }
 
+//Feature Tracking usando OpticalFlow
 void featureTrackingOpticalFlow(Mat img1, Mat img2, vector<Point2f>& points1, vector<Point2f>& points2, vector<uchar>& status){
     vector<float> err;
 
@@ -76,6 +78,7 @@ void featureTrackingOpticalFlow(Mat img1, Mat img2, vector<Point2f>& points1, ve
     }
 }
 
+//Feature Detection usando FAST
 void featureDetection(Mat img_1, vector<Point2f>& points1)	{   //USA FAST
   vector<KeyPoint> keypoints_1;
   int fast_threshold = 20;
@@ -83,6 +86,22 @@ void featureDetection(Mat img_1, vector<Point2f>& points1)	{   //USA FAST
   FAST(img_1, keypoints_1, fast_threshold, nonmaxSuppression);
   KeyPoint::convert(keypoints_1, points1, vector<int>());
 }
+
+//vector<double> readScales(char *address){
+//  cout<<address<<endl;
+//  ifstream file;
+//  file.open(address, ios::in);
+//  vector<double> scales;
+//  double value;
+
+//  if(!file) cout<<"Erro ao abrir o arquivo de escalas."<<endl;
+
+//  while(!file.eof()){
+//      file >> value;
+//      scales.push_back(value);
+//  }
+//  return scales;
+//}
 
 int main(int argc, char *argv[]) {
    /*-------COMANDOS----------
@@ -162,7 +181,7 @@ int main(int argc, char *argv[]) {
             kps1.clear();
             kps2.clear();
             points1.clear();
-            points2.clear();            
+            points2.clear();
             continue;
         }
 //        drawMatches(frame1, kps1, frame2, kps2, good, output);
@@ -176,19 +195,27 @@ int main(int argc, char *argv[]) {
         Mat t_f = Mat::zeros(3,1, CV_64F);
         Mat R_f;
 
-        E = findEssentialMat(points1, points2, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
+        E = findEssentialMat(points2, points1, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
         recoverPose(E, points2, points1, R_f, t_f, focal, pp);
         float scale = getAbsoluteScale(num_frame++, argv[2]);
 
 //        cout << R << endl;
 //        cout << t << endl;
-        cout <<"Num frame:"<<num_frame<<" - Scale:"<< scale << endl;
-        t = t + scale*(R_f*t_f);
-        R = R_f*R;
+//        cout <<"Num frame:"<<num_frame<<" - Scale:"<< scale << endl;
+
+        cout<<"R:"<<R_f<<endl;
+        cout<<"R*T:"<<R_f*t_f<<endl;
+        cout<<"T:"<<t_f<<endl;
+        cout<<endl;
+
+//         if ((scale>0.1)&&(t_f.at<double>(2) > t_f.at<double>(0)) && (t_f.at<double>(2) > t_f.at<double>(1))) {
+            t = t + scale*(R*t_f);
+            R = R_f*R;
+//        }
 
 //        traj.setTo(0);
 
-        Point2d p1 = Point2d(-t.at<double>(0)+250, t.at<double>(1)+250);
+        Point2d p1 = Point2d(-t.at<double>(1)+250, t.at<double>(2)+250);
 //        Point2d p2 = Point2d(10*t.at<double>(1)+50, 10*t.at<double>(2)+50);
         circle(traj, p1, 1, cvScalar(0,0,255), 2);
         line(traj, p0, p1, cvScalar(0,255,255),2);
@@ -211,7 +238,7 @@ int main(int argc, char *argv[]) {
 //        imshow("Frame t", frame1);
         frame2.copyTo(frame1);
         for (int i = 0; i < good.size(); ++i) {
-            DMatch d1  = good[i][0];            
+            DMatch d1  = good[i][0];
             KeyPoint kt1 = kps1.at(d1.queryIdx);
             KeyPoint kt2 = kps2.at(d1.trainIdx);
             circle(frame2, kt1.pt, 1, cvScalar(255,0,0));
@@ -233,4 +260,3 @@ int main(int argc, char *argv[]) {
     cap.release();
     return 0;
 }
-
