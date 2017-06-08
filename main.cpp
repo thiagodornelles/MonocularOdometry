@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
     Mat R = Mat::eye(3, 3, CV_64F);
     Mat t = Mat::zeros(3, 1, CV_64F);
     Mat E;
-    Point2d p0 = Point2d(250, 250);
+    Point2d p0 = Point2d(150, 350);
     vector<uchar> status;
     int num_frame = 1;
 
@@ -200,22 +200,25 @@ int main(int argc, char *argv[]) {
         float scale = getAbsoluteScale(num_frame++, argv[2]);
 
 //        cout << R << endl;
-//        cout << t << endl;
+
 //        cout <<"Num frame:"<<num_frame<<" - Scale:"<< scale << endl;
 
-        cout<<"R:"<<R_f<<endl;
-        cout<<"R*T:"<<R_f*t_f<<endl;
-        cout<<"T:"<<t_f<<endl;
+//        cout<<"R:"<<R_f<<endl;
+//        cout<<"R*T:"<<R_f*t_f<<endl;
+        cout<<"T:"<<t<<endl;
         cout<<endl;
 
 //         if ((scale>0.1)&&(t_f.at<double>(2) > t_f.at<double>(0)) && (t_f.at<double>(2) > t_f.at<double>(1))) {
             t = t + scale*(R*t_f);
             R = R_f*R;
+
 //        }
 
 //        traj.setTo(0);
+        float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)};
+        Point2d p1 = Point2d((int)(t.at<double>(2)*rot[0][0]+t.at<double>(0)*rot[0][1]),(int)(t.at<double>(2)*rot[1][0]+t.at<double>(0)*rot[1][1]));
+        p1 = Point2d(p1.x+150, p1.y+350);
 
-        Point2d p1 = Point2d(-t.at<double>(1)+250, t.at<double>(2)+250);
 //        Point2d p2 = Point2d(10*t.at<double>(1)+50, 10*t.at<double>(2)+50);
         circle(traj, p1, 1, cvScalar(0,0,255), 2);
         line(traj, p0, p1, cvScalar(0,255,255),2);
