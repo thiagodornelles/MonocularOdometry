@@ -88,18 +88,24 @@ int main(int argc, char *argv[]) {
    /*-------COMANDOS----------
     * argv[1] - endereco do video
     * argv[2] - endereco do ground-truth
+    * argv[3] - tipo do matcher
    */
+
+    VideoCapture cap(argv[1]);
+    if(!cap.isOpened()){
+        cout<<"Erro ao abrir o video. Verifique o endereco informado"<<endl;
+        return 0;
+    }
+
+    Matcher type_matcher = (!strcmp(argv[3],"KNN"))? KNN:Optical; //selecionando o tipo do matcher (KNN ou Optical)
 
     Ptr<Feature2D> orb = ORB::create(600);
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
 
-    VideoCapture cap(argv[1]);
-
-    Matcher type_matcher = (!strcmp(argv[3],"KNN"))? KNN:Optical; //selecionando o tipo do matcher (KNN ou Optical)
-
 //    481.20,	0,          319.50
 //    0,        -480.00,	239.50
 //    0,        0,          1
+
     Mat frame1, frame2, output;
     Mat traj = Mat::zeros(500, 500, CV_8UC3);
     Mat desc1, desc2;
@@ -112,11 +118,13 @@ int main(int argc, char *argv[]) {
     Mat E;
     Point2d p0 = Point2d(250, 250);
     vector<uchar> status;
-    cap >> frame1;
     int num_frame = 1;
+
+    //Comecando a analisar o video
+    cap >> frame1;
     while(cap.isOpened()){
 //        for (int i = 0; i < 10 && cap.isOpened(); ++i) {
-            cap >> frame2;
+        cap >> frame2;
 //        }
         if(frame2.empty()) break;
 
