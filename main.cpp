@@ -88,6 +88,63 @@ void featureDetection(Mat img_1, vector<Point2f>& points1)	{   //USA FAST
   KeyPoint::convert(keypoints_1, points1, vector<int>());
 }
 
+
+void getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_matcher, vector< vector<DMatch> >& good, Mat& R_f, Mat& t_f, vector<KeyPoint>& kps1, vector<KeyPoint>& kps2){
+    Mat desc1, desc2;
+
+    vector<Point2f> points1, points2;
+    vector< vector<DMatch> > matches;
+
+    Mat E;
+    vector<uchar> status;
+
+    Point2d pp = Point2d(607.1928, 185.2157);
+    float focal = 718.8560;
+
+
+    if(type_matcher == KNN){
+        Ptr<Feature2D> orb = ORB::create(600);
+        Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
+
+        orb->detectAndCompute(frame1, noArray(), kps1, desc1, false);
+        orb->detectAndCompute(frame2, noArray(), kps2, desc2, false);
+
+        matcher->knnMatch(desc1, desc2, matches, 2);
+
+        //Pegando matchings mais confiáveis
+        for (int i = 0; i < matches.size(); ++i) {
+            DMatch d1  = matches[i][0];
+            DMatch d2  = matches[i][1];
+            if (d1.distance < 0.8 * d2.distance) {
+                vector<DMatch> v;
+                v.push_back(d1);
+                good.push_back(v);
+                KeyPoint kt1 = kps1.at(d1.queryIdx);
+                points1.push_back(kt1.pt);
+                KeyPoint kt2 = kps2.at(d1.trainIdx);
+                points2.push_back(kt2.pt);
+            }
+        }
+    }else{
+        featureDetection(frame1,points1);
+        featureTrackingOpticalFlow(frame1, frame2, points1, points2, status);
+    }
+    if(points1.size() < 10){
+        frame2.copyTo(frame1);
+        good.clear();
+        matches.clear();
+        kps1.clear();
+        kps2.clear();
+        points1.clear();
+        points2.clear();
+        R_f = 0;
+        t_f = 0;
+    }else{
+        E = findEssentialMat(points2, points1, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
+        recoverPose(E, points2, points1, R_f, t_f, focal, pp);
+    }
+}
+
 int main(int argc, char *argv[]) {
    /*-------COMANDOS----------
     * argv[1] - endereco do video
@@ -96,11 +153,24 @@ int main(int argc, char *argv[]) {
     * argv[4] - quantidade de frames que serão pulados
    */
 
+    Mat frame1, frame2;
+    Mat traj = Mat::zeros(500, 500, CV_8UC3);
+
+    Mat R = Mat::eye(3, 3, CV_64F);
+    Mat t = Mat::zeros(3, 1, CV_64F);
+    vector< vector<DMatch> > good;
+    vector<KeyPoint> kps1, kps2;
+
+    Point2d p0 = Point2d(150, 350);
+
+    int num_frame = 1;
+
     if(argc != 5){
         cout<<"Confira os parametros necessarios para a execucao do programa.\n<Endereco do video> <Endereco do Ground-Truth> <Tipo do Matcher> <Step dos frames>"<<endl;
         return 0;
     }
 
+    //-----------CONFIGURANDO PARAMETROS-----------
     VideoCapture cap(argv[1]);
     if(!cap.isOpened()){
         cout<<"Erro ao abrir o video. Verifique o endereco informado"<<endl;
@@ -109,29 +179,11 @@ int main(int argc, char *argv[]) {
 
     //Selecionando o tipo do matcher (KNN ou Optical)
     Matcher type_matcher = (!strcmp(argv[3],"KNN"))? KNN:Optical;
-
-    Ptr<Feature2D> orb = ORB::create(600);
-    Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
+    int stepFrames = atoi(argv[4]);
 
 //    481.20,	0,          319.50
 //    0,        -480.00,	239.50
 //    0,        0,          1
-
-    Mat frame1, frame2;
-    Mat traj = Mat::zeros(500, 500, CV_8UC3);
-    Mat desc1, desc2;
-    vector<KeyPoint> kps1, kps2;
-    vector<Point2f> points1, points2;
-    vector< vector<DMatch> > matches;
-    vector< vector<DMatch> > good;
-    Mat R = Mat::eye(3, 3, CV_64F);
-    Mat t = Mat::zeros(3, 1, CV_64F);
-    Mat E;
-    Point2d p0 = Point2d(150, 350);
-    vector<uchar> status;
-    int num_frame = 1;
-
-    int stepFrames = atoi(argv[4]);
 
 
     //Comecando a analisar o video, capturando o primeiro frame
@@ -145,55 +197,14 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        if(type_matcher == KNN){
-            orb->detectAndCompute(frame1, noArray(), kps1, desc1, false);
-            orb->detectAndCompute(frame2, noArray(), kps2, desc2, false);
-
-    //        drawKeypoints(frame1, kps1, frame1);
-    //        drawKeypoints(frame2, kps2, frame2);
-
-            matcher->knnMatch(desc1, desc2, matches, 2);
-
-            //Pegando matchings mais confiáveis
-            for (int i = 0; i < matches.size(); ++i) {
-                DMatch d1  = matches[i][0];
-                DMatch d2  = matches[i][1];
-                if (d1.distance < 0.8 * d2.distance) {
-                    vector<DMatch> v;
-                    v.push_back(d1);
-                    good.push_back(v);
-                    KeyPoint kt1 = kps1.at(d1.queryIdx);
-                    points1.push_back(kt1.pt);
-                    KeyPoint kt2 = kps2.at(d1.trainIdx);
-                    points2.push_back(kt2.pt);
-                }
-            }
-        }else{  //Usando a abordagem do site
-            featureDetection(frame1,points1);
-            featureTrackingOpticalFlow(frame1, frame2, points1, points2, status);
-        }
-        if(points1.size() < 10){
-            frame2.copyTo(frame1);
-            good.clear();
-            matches.clear();
-            kps1.clear();
-            kps2.clear();
-            points1.clear();
-            points2.clear();
-            continue;
-        }
 //        drawMatches(frame1, kps1, frame2, kps2, good, output);
 //        Point2d pp = Point2d(319.50f, 239.50f);
 //        Point2d pp = Point2d(0, 0);
 
-        //Informacoes da camera para o dataset da KITTI
-        Point2d pp = Point2d(607.1928, 185.2157);
-        float focal = 718.8560;
 
         Mat t_f, R_f;
+        getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
 
-        E = findEssentialMat(points2, points1, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
-        recoverPose(E, points2, points1, R_f, t_f, focal, pp);
         float scale = getAbsoluteScale(num_frame, argv[2]);
         num_frame = num_frame+stepFrames+1;//Atualizando o índice do valor de escala
 
@@ -229,6 +240,7 @@ int main(int argc, char *argv[]) {
 
 //        imshow("Frame t", frame1);
         frame2.copyTo(frame1);
+
         for (int i = 0; i < good.size(); ++i) {
             DMatch d1  = good[i][0];
             KeyPoint kt1 = kps1.at(d1.queryIdx);
@@ -243,11 +255,8 @@ int main(int argc, char *argv[]) {
         imshow("trajetoria", traj);
         if(waitKey(0) == 'q') cap.release();
         good.clear();
-        matches.clear();
         kps1.clear();
         kps2.clear();
-        points1.clear();
-        points2.clear();
     }
     cap.release();
     return 0;
