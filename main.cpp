@@ -3,6 +3,7 @@
 #include <sstream>
 #include <fstream>
 #include <string>
+#include <cstdlib>
 #include <opencv/cv.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -87,28 +88,18 @@ void featureDetection(Mat img_1, vector<Point2f>& points1)	{   //USA FAST
   KeyPoint::convert(keypoints_1, points1, vector<int>());
 }
 
-//vector<double> readScales(char *address){
-//  cout<<address<<endl;
-//  ifstream file;
-//  file.open(address, ios::in);
-//  vector<double> scales;
-//  double value;
-
-//  if(!file) cout<<"Erro ao abrir o arquivo de escalas."<<endl;
-
-//  while(!file.eof()){
-//      file >> value;
-//      scales.push_back(value);
-//  }
-//  return scales;
-//}
-
 int main(int argc, char *argv[]) {
    /*-------COMANDOS----------
     * argv[1] - endereco do video
     * argv[2] - endereco do ground-truth
     * argv[3] - tipo do matcher
+    * argv[4] - quantidade de frames que serão pulados
    */
+
+    if(argc != 5){
+        cout<<"Confira os parametros necessarios para a execucao do programa.\n<Endereco do video> <Endereco do Ground-Truth> <Tipo do Matcher> <Step dos frames>"<<endl;
+        return 0;
+    }
 
     VideoCapture cap(argv[1]);
     if(!cap.isOpened()){
@@ -116,7 +107,8 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    Matcher type_matcher = (!strcmp(argv[3],"KNN"))? KNN:Optical; //selecionando o tipo do matcher (KNN ou Optical)
+    //Selecionando o tipo do matcher (KNN ou Optical)
+    Matcher type_matcher = (!strcmp(argv[3],"KNN"))? KNN:Optical;
 
     Ptr<Feature2D> orb = ORB::create(600);
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
@@ -139,13 +131,19 @@ int main(int argc, char *argv[]) {
     vector<uchar> status;
     int num_frame = 1;
 
-    //Comecando a analisar o video
+    int stepFrames = atoi(argv[4]);
+
+
+    //Comecando a analisar o video, capturando o primeiro frame
     cap >> frame1;
     while(cap.isOpened()){
-//        for (int i = 0; i < 10 && cap.isOpened(); ++i) {
-        cap >> frame2;
-//        }
-        if(frame2.empty()) break;
+        for (int i = 0; i < stepFrames && cap.isOpened(); ++i) {
+            cap >> frame2;
+        }
+        if(frame2.empty()){
+            cout<<"Erro na leitura do frame2"<<endl;
+            break;
+        }
 
         if(type_matcher == KNN){
             orb->detectAndCompute(frame1, noArray(), kps1, desc1, false);
@@ -188,16 +186,16 @@ int main(int argc, char *argv[]) {
 //        Point2d pp = Point2d(319.50f, 239.50f);
 //        Point2d pp = Point2d(0, 0);
 
-        //Informacoes da camera
+        //Informacoes da camera para o dataset da KITTI
         Point2d pp = Point2d(607.1928, 185.2157);
         float focal = 718.8560;
 
-        Mat t_f = Mat::zeros(3,1, CV_64F);
-        Mat R_f;
+        Mat t_f, R_f;
 
         E = findEssentialMat(points2, points1, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
         recoverPose(E, points2, points1, R_f, t_f, focal, pp);
-        float scale = getAbsoluteScale(num_frame++, argv[2]);
+        float scale = getAbsoluteScale(num_frame, argv[2]);
+        num_frame = num_frame+stepFrames+1;//Atualizando o índice do valor de escala
 
         //ESSE IF FAZ MUITA DIFERENCA NA ESTIMATIVA
          if ((scale>0.1)&&(t_f.at<double>(2) > t_f.at<double>(0)) && (t_f.at<double>(2) > t_f.at<double>(1))) {
@@ -205,7 +203,7 @@ int main(int argc, char *argv[]) {
             R = R_f*R;
         }
 
-        float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao do ponto da trajetoria
+        float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao 2D do ponto da trajetoria
         Point2d p1 = Point2d((int)(t.at<double>(2)*rot[0][0]+t.at<double>(0)*rot[0][1]),
                              (int)(t.at<double>(2)*rot[1][0]+t.at<double>(0)*rot[1][1])); //Ponto rotacionado
         p1 = Point2d(p1.x+150, p1.y+350); //Transladando o ponto
