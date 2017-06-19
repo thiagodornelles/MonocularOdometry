@@ -139,11 +139,9 @@ void getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_match
         points2.clear();
         R_f = 0;
         t_f = 0;
-        cout<<"RETORNA 0 na funcao"<<endl;
     }else{
         E = findEssentialMat(points2, points1, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
         recoverPose(E, points2, points1, R_f, t_f, focal, pp);
-        cout<<"RETORNA valor na funcao"<<endl;
     }
 }
 
@@ -168,7 +166,7 @@ int main(int argc, char *argv[]) {
 
     Point2d p0 = Point2d(150, 350);
 
-    int max_hist = 4;
+    int max_hist = 0;
     int num_frame = 1;
     int cont_hist = 0;
 
@@ -196,6 +194,17 @@ int main(int argc, char *argv[]) {
     //Comecando a analisar o video, capturando o primeiro frame
     cap >> frame1;
     frame1.copyTo(frame_hist);
+    cap >> frame2;
+    Mat t_f, R_f, t_f_hist, R_f_hist;
+
+    getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
+    float scale = getAbsoluteScale(num_frame, argv[2]);
+
+    t = t + scale*(R*t_f);
+    R = R_f*R;
+
+    frame2.copyTo(frame1);
+
     while(cap.isOpened()){
         for (int i = 0; i < stepFrames && cap.isOpened(); ++i) {
             cap >> frame2;
@@ -210,7 +219,7 @@ int main(int argc, char *argv[]) {
 //        Point2d pp = Point2d(0, 0);
 
 
-        Mat t_f, R_f, t_f_hist, R_f_hist;
+
 
         //Transformacao entre t e t+1
         getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
@@ -219,7 +228,7 @@ int main(int argc, char *argv[]) {
             //Transformacao entre t-n e t+1
             getTransformationsBetween2Frames(frame_hist, frame2, type_matcher, good, R_f_hist, t_f_hist, kps_hist, kps2); //ESSA FUNCAO CALCULA R E t
 
-        float scale = getAbsoluteScale(num_frame, argv[2]);
+
         num_frame = num_frame+stepFrames+1;//Atualizando o índice do valor de escala
 
         //ESSE IF FAZ MUITA DIFERENCA NA ESTIMATIVA
@@ -231,8 +240,11 @@ int main(int argc, char *argv[]) {
                 R_hist = R_f_hist*R_hist;
                 cont_hist = 0;
                 frame2.copyTo(frame_hist);
+                cout<<"CONT:"<<cont_hist<<endl;
                 cout<<"T:"<<t<<endl;
                 cout<<"T_hist:"<<t_hist<<endl;
+                t_hist = t;
+                R_hist = R;
             }
             cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
         }
@@ -280,6 +292,8 @@ int main(int argc, char *argv[]) {
         good.clear();
         kps1.clear();
         kps2.clear();
+        kps_hist.clear();
+
     }
     cap.release();
     return 0;
