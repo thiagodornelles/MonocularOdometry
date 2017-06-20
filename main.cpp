@@ -111,13 +111,17 @@ void getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_match
 
         matcher->knnMatch(desc1, desc2, matches, 2);
 
+        float sum_good = 0;
         //Pegando matchings mais confiáveis
         for (int i = 0; i < matches.size(); ++i) {
             DMatch d1  = matches[i][0];
             DMatch d2  = matches[i][1];
+//            cout<<"D1:"<<d1.distance<<endl<<"D2:"<<d2.distance<<endl<<endl;
+
             if (d1.distance < 0.8 * d2.distance) {
                 vector<DMatch> v;
                 v.push_back(d1);
+                sum_good += d1.distance;
                 good.push_back(v);
                 KeyPoint kt1 = kps1.at(d1.queryIdx);
                 points1.push_back(kt1.pt);
@@ -125,6 +129,7 @@ void getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_match
                 points2.push_back(kt2.pt);
             }
         }
+        cout<<"SUM:"<<sum_good<<endl;
     }else{
         featureDetection(frame1,points1);
         featureTrackingOpticalFlow(frame1, frame2, points1, points2, status);
