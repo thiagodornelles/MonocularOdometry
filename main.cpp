@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
 
     vector< vector<DMatch> > good;
     vector<KeyPoint> kps1, kps2, kps_hist;
-
+    vector<Mat> allframes, allR, allt;
     Point2d p0 = Point2d(150, 350);
 
     int max_hist = 0;
@@ -194,24 +194,13 @@ int main(int argc, char *argv[]) {
     //Comecando a analisar o video, capturando o primeiro frame
     cap >> frame1;
     frame1.copyTo(frame_hist);
-    cap >> frame2;
-    Mat t_f, R_f, t_f_hist, R_f_hist, t_old, R_old;
 
-    //Calculando a transformacao inicial entre os dois primeiros frames
-    getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
-    float scale = getAbsoluteScale(num_frame, argv[2]);
-
-    t = t + scale*(R*t_f);
-    R = R_f*R;
-
-    t_old = t;
-    R_old = R;
-
-    frame2.copyTo(frame1);
+    Mat t_f, R_f, t_f_hist, R_f_hist;
 
     while(cap.isOpened()){
-        for (int i = 1; i < stepFrames && cap.isOpened(); ++i) {
+        for (int i = 0; i < stepFrames && cap.isOpened(); ++i) {
             cap >> frame2;
+            allframes.push_back(frame2);
         }
         if(frame2.empty()){
             cout<<"Erro na leitura do frame2"<<endl;
@@ -232,13 +221,17 @@ int main(int argc, char *argv[]) {
             //Transformacao entre t-n e t+1
             getTransformationsBetween2Frames(frame_hist, frame2, type_matcher, good, R_f_hist, t_f_hist, kps_hist, kps2); //ESSA FUNCAO CALCULA R E t
 
-        scale = getAbsoluteScale(num_frame, argv[2]);
+        float scale = getAbsoluteScale(num_frame, argv[2]);
         num_frame = num_frame+stepFrames+1;//Atualizando o índice do valor de escala
 
         //ESSE IF FAZ MUITA DIFERENCA NA ESTIMATIVA
          if ((scale>0.1)&&(t_f.at<double>(2) > t_f.at<double>(0)) && (t_f.at<double>(2) > t_f.at<double>(1))) {
             t = t + scale*(R*t_f);
             R = R_f*R;
+
+            allt.push_back(t);
+            allR.push_back(R);
+
             if(cont_hist >= max_hist){
                 t_hist = t_hist + scale*(R_hist*t_f_hist);
                 R_hist = R_f_hist*R_hist;
@@ -249,11 +242,15 @@ int main(int argc, char *argv[]) {
                 //COMPARAR AS DUAS ESTIMATIVAS (t,R com t_hist, R_hist)
                 //Atualizando os parametros
                 cont_hist = 0;
-                frame1.copyTo(frame_hist);
-                t_hist = t_old;
-                R_hist = R_old;
-                t_old = t;
-                R_old = R;
+                allframes.front().copyTo(frame_hist);
+                t_hist = allt.front();
+                R_hist = allR.front();
+
+                //Removendo os primeiros elementos que ja foram usados
+                allframes.erase(allframes.begin());
+                allt.erase(allt.begin());
+                allR.erase(allR.begin());
+
             }
             cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
         }
