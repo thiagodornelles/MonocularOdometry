@@ -157,7 +157,6 @@ int main(int argc, char *argv[]) {
     * argv[3] - tipo do matcher
     * argv[4] - quantidade de frames que serão pulados
    */
-
     Mat frame1, frame2, frame_hist;
     Mat traj = Mat::zeros(500, 500, CV_8UC3);
 
@@ -171,7 +170,7 @@ int main(int argc, char *argv[]) {
     vector<Mat> allframes, allR, allt;
     Point2d p0 = Point2d(150, 350);
 
-    int max_hist = 0;
+    int max_hist = 2;
     int num_frame = 1;
     int cont_hist = 0;
 
@@ -200,8 +199,6 @@ int main(int argc, char *argv[]) {
     cap >> frame1;
     frame1.copyTo(frame_hist);
 
-    Mat t_f, R_f, t_f_hist, R_f_hist;
-
     while(cap.isOpened()){
         for (int i = 0; i < stepFrames && cap.isOpened(); ++i) {
             cap >> frame2;
@@ -211,22 +208,21 @@ int main(int argc, char *argv[]) {
             cout<<"Erro na leitura do frame2"<<endl;
             break;
         }
+        cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
 
 //        drawMatches(frame1, kps1, frame2, kps2, good, output);
 //        Point2d pp = Point2d(319.50f, 239.50f);
 //        Point2d pp = Point2d(0, 0);
 
-
-
-
+        Mat t_f, R_f, t_f_hist, R_f_hist;
         //Transformacao entre t e t+1
         getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
 
-        if(cont_hist >= max_hist)
+        if(cont_hist == max_hist)
             //Transformacao entre t-n e t+1
             getTransformationsBetween2Frames(frame_hist, frame2, type_matcher, good, R_f_hist, t_f_hist, kps_hist, kps2); //ESSA FUNCAO CALCULA R E t
 
-        float scale = getAbsoluteScale(num_frame, argv[2]);
+        float scale = .8;//getAbsoluteScale(num_frame, argv[2]);
         num_frame = num_frame+stepFrames+1;//Atualizando o índice do valor de escala
 
         //ESSE IF FAZ MUITA DIFERENCA NA ESTIMATIVA
@@ -234,19 +230,13 @@ int main(int argc, char *argv[]) {
             t = t + scale*(R*t_f);
             R = R_f*R;
 
-            allt.push_back(t);
-            allR.push_back(R);
-
-            if(cont_hist >= max_hist){
+            if(cont_hist == max_hist){
                 t_hist = t_hist + scale*(R_hist*t_f_hist);
                 R_hist = R_f_hist*R_hist;
 
-                cout<<"CONT:"<<cont_hist<<endl;
-                cout<<"T:"<<t<<endl;
-                cout<<"T_hist:"<<t_hist<<endl;
                 //COMPARAR AS DUAS ESTIMATIVAS (t,R com t_hist, R_hist)
                 //Atualizando os parametros
-                cont_hist = 0;
+                cont_hist = max_hist-1;
                 allframes.front().copyTo(frame_hist);
                 t_hist = allt.front();
                 R_hist = allR.front();
@@ -255,9 +245,12 @@ int main(int argc, char *argv[]) {
                 allframes.erase(allframes.begin());
                 allt.erase(allt.begin());
                 allR.erase(allR.begin());
-
             }
-            cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
+            Mat aux;
+            t.copyTo(aux);
+            allt.push_back(aux);
+            R.copyTo(aux);
+            allR.push_back(aux);
         }
 
         float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao 2D do ponto da trajetoria
