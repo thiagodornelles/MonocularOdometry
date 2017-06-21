@@ -289,6 +289,7 @@ int main(int argc, char *argv[]) {
                     //Atualizando o contador da janela do "hist"
                     cont_hist = max_hist-1;
 
+
                     //Desenhando as features da transformacao entre "frame_hist" e "frame2"
                     for (int i = 0; i < good_hist.size(); ++i) {
                         DMatch d1  = good_hist[i][0];
@@ -298,7 +299,7 @@ int main(int argc, char *argv[]) {
                         line(frame_hist, kt1.pt, kt2.pt, cvScalar(0,255,0));
                         circle(frame_hist, kt2.pt, 1, cvScalar(0,0,255));
                     }
-
+                    imshow("Frame_hist", frame_hist);
                     //Atualizando os valores das variaveis "hist"
                     allframes.front().copyTo(frame_hist);
                     t_hist = allt.front();
