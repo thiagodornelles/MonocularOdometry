@@ -51,6 +51,7 @@ double getAbsoluteScale(int frame_id, char *address, Point2d& gt){
     cout << "Unable to open file";
     return 0;
   }
+  cout<<"PONTO DO GT:"<<endl;
   cout<<"X:"<<x_prev<<" Y:"<<y_prev<<" Z:"<<z_prev<<endl;
 
   float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao 2D do ponto do GT
@@ -163,8 +164,8 @@ Mat meanTranslation(Mat t, Mat t_hist){
     t_mean.at<double>(1) = (t.at<double>(1)+t_hist.at<double>(1))/2.0;
     t_mean.at<double>(2) = (t.at<double>(2)+t_hist.at<double>(2))/2.0;
 
-    return t_mean;
-//    return t;
+//    return t_mean;
+    return t;
 }
 
 Mat meanRotation(Mat R, Mat R_hist){
@@ -199,7 +200,7 @@ int main(int argc, char *argv[]) {
     vector<Mat> allframes, allR, allt;
     Point2d p0 = Point2d(150, 350);
     Point2d gt;
-    int max_hist = 5;
+    int max_hist = 2;
     int num_frame = 1;
     int cont_hist = 0;
 
@@ -226,17 +227,15 @@ int main(int argc, char *argv[]) {
 
     //Comecando a analisar o video, capturando o primeiro frame
     cap >> frame1;
-    cout<<"Leu frame1"<<endl;
     frame1.copyTo(frame_hist);
-    cout<<"Copiou para frame_hist"<<endl;
 
     float scale_hist = 0;
     while(cap.isOpened()){
         for (int i = 0; i < stepFrames && cap.isOpened(); ++i) {
             cap >> frame2;
-            cout<<"Leu frame2"<<endl;
-            allframes.push_back(frame2);
-            cout<<"Adicionou f2 no vector all frames"<<endl;
+            Mat temp;
+            frame2.copyTo(temp);
+            allframes.push_back(temp);
         }
         if(frame2.empty()){
             cout<<"Erro na leitura do frame2"<<endl;
@@ -248,10 +247,9 @@ int main(int argc, char *argv[]) {
 //        Point2d pp = Point2d(319.50f, 239.50f);
 //        Point2d pp = Point2d(0, 0);
 
-        Mat t_f, R_f, t_f_hist, R_f_hist;
+        Mat t_f, R_f;
         //Transformacao entre t e t+1
         getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
-        cout<<"Pegou a transf entre f1 e f2"<<endl;
 
         float scale = getAbsoluteScale(num_frame, argv[2], gt);
         scale_hist += scale;
@@ -261,81 +259,72 @@ int main(int argc, char *argv[]) {
          if ((scale>0.1)&&(t_f.at<double>(2) > t_f.at<double>(0)) && (t_f.at<double>(2) > t_f.at<double>(1))) {
             t = t + scale*(R*t_f);
             R = R_f*R;
-            cout<<"Calculou t e R"<<endl;
 
             cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
-            cout<<"Incrementou cont_hist. Agora esta em:"<<cont_hist<<endl;
 
             if(cont_hist >= max_hist){
                 //Transformacao entre t-n e t+1
+                Mat t_f_hist, R_f_hist;
                 vector< vector<DMatch> > good_hist;
                 vector<KeyPoint> kps2_hist, kps_hist;
                 getTransformationsBetween2Frames(frame_hist, frame2, type_matcher, good_hist, R_f_hist, t_f_hist, kps_hist, kps2_hist); //ESSA FUNCAO CALCULA R E t
-                cout<<"Pegou a transf entre frame_hist e f2"<<endl;
 
-                scale_hist /= (float)cont_hist;
+                scale_hist /= (float)cont_hist; //A escala do "frame_hist" é a media das escalas entre o "frame_hist" e o "frame2"
                 t_hist = t_hist + scale_hist*(R_hist*t_f_hist);
                 R_hist = R_f_hist*R_hist;
 
-                cout<<"Calculou t_hist e R_hist"<<endl;
 
                 //COMPARAR AS DUAS ESTIMATIVAS (t,R com t_hist, R_hist)
                 if ((scale_hist>0.1)&&(t_f_hist.at<double>(2) > t_f_hist.at<double>(0)) && (t_f_hist.at<double>(2) > t_f_hist.at<double>(1))) {
-                Mat t_mean = meanTranslation(t, t_hist);
-                Mat R_mean = meanRotation(R, R_hist);
-                cout<<"Calculou t_mean R_mean"<<endl;
+                    Mat t_mean = meanTranslation(t, t_hist); //DO JEITO QUE EU DEIXEI, NAO ESTA CALCULANDO A MEDIA, SO RETORNANDO O VALOR DE t
+                    Mat R_mean = meanRotation(R, R_hist); //DO JEITO QUE EU DEIXEI, NAO ESTA CALCULANDO A MEDIA, SO RETORNANDO O VALOR DE R
+
+                    cout<<endl<<"T:"<<t<<endl;
+                    cout<<"T_hist:"<<t_hist<<endl;
+                    cout<<"T_mean:"<<t_mean<<endl<<endl;
+                    cout<<endl<<"R:"<<R<<endl;
+                    cout<<"R_hist:"<<R_hist<<endl;
+                    cout<<"R_mean:"<<R_mean<<endl<<endl;
+
+                    //Atualizando o contador da janela do "hist"
+                    cont_hist = max_hist-1;
+
+                    //Desenhando as features da transformacao entre "frame_hist" e "frame2"
+                    for (int i = 0; i < good_hist.size(); ++i) {
+                        DMatch d1  = good_hist[i][0];
+                        KeyPoint kt1 = kps_hist.at(d1.queryIdx);
+                        KeyPoint kt2 = kps2_hist.at(d1.trainIdx);
+                        circle(frame_hist, kt1.pt, 1, cvScalar(255,0,0));
+                        line(frame_hist, kt1.pt, kt2.pt, cvScalar(0,255,0));
+                        circle(frame_hist, kt2.pt, 1, cvScalar(0,0,255));
+                    }
+
+                    //Atualizando os valores das variaveis "hist"
+                    allframes.front().copyTo(frame_hist);
+                    t_hist = allt.front();
+                    R_hist = allR.front();
 
 
-                cout<<endl<<"T:"<<t<<endl;
-                cout<<"T_hist:"<<t_hist<<endl;
-                cout<<"T_mean:"<<t_mean<<endl<<endl;
-                cout<<endl<<"R:"<<R<<endl;
-                cout<<"R_hist:"<<R_hist<<endl;
-                cout<<"R_mean:"<<R_mean<<endl<<endl;
+                    //Removendo os primeiros elementos que ja foram usados
+                    allframes.erase(allframes.begin());
+                    allt.erase(allt.begin());
+                    allR.erase(allR.begin());
 
-                //Atualizando os parametros
-                cont_hist = max_hist-1;
-                cout<<"Decrementou cont_hist. Agora esta em:"<<cont_hist<<endl;
+                    //Atualizando o valor do r e do T
+                    t = t_mean;
+                    R = R_mean;
 
-
-
-                for (int i = 0; i < good_hist.size(); ++i) {
-                    DMatch d1  = good_hist[i][0];
-                    KeyPoint kt1 = kps_hist.at(d1.queryIdx);
-                    KeyPoint kt2 = kps2_hist.at(d1.trainIdx);
-                    circle(frame_hist, kt1.pt, 1, cvScalar(255,0,0));
-                    line(frame_hist, kt1.pt, kt2.pt, cvScalar(0,255,0));
-                    circle(frame_hist, kt2.pt, 1, cvScalar(0,0,255));
-                }
-
-                imshow("Frame_hist", frame_hist);
-
-
-
-
-                allframes.front().copyTo(frame_hist);
-                t_hist = allt.front();
-                R_hist = allR.front();
-                cout<<"Atualizou o frame_hist, t_hist e R_hist com os valores iniciais dos vectors"<<endl;
-
-                //Removendo os primeiros elementos que ja foram usados
-                allframes.erase(allframes.begin());
-                allt.erase(allt.begin());
-                allR.erase(allR.begin());
-                cout<<"Removeu os itens iniciais dos vectors"<<endl;
-
-                t = t_mean;
-                R = R_mean;
-                cout<<"Atualizou t e R com o valor de *_mean"<<endl;
                 }
                 scale_hist = 0;
             }
+
+            //Inserindo os valores de t e R nos vectors de controle
             Mat aux;
             t.copyTo(aux);
             allt.push_back(aux);
             R.copyTo(aux);
             allR.push_back(aux);
-            cout<<"Adicionou t e R aos vectors"<<endl;
+
         }
 
         float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao 2D do ponto da trajetoria
@@ -365,7 +354,6 @@ int main(int argc, char *argv[]) {
 
 //        imshow("Frame t", frame1);
         frame2.copyTo(frame1);
-        cout<<"Copiou f2 para f1"<<endl<<"-------------------"<<endl<<endl;
 
         for (int i = 0; i < good.size(); ++i) {
             DMatch d1  = good[i][0];
