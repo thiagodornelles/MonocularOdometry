@@ -129,7 +129,7 @@ void getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_match
                 points2.push_back(kt2.pt);
             }
         }
-        cout<<"SUM:"<<sum_good<<endl;
+//        cout<<"SUM:"<<sum_good<<endl;
     }else{
         featureDetection(frame1,points1);
         featureTrackingOpticalFlow(frame1, frame2, points1, points2, status);
@@ -148,6 +148,27 @@ void getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_match
         E = findEssentialMat(points2, points1, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
         recoverPose(E, points2, points1, R_f, t_f, focal, pp);
     }
+}
+
+Mat meanTranslation(Mat t, Mat t_hist){
+    Mat t_mean = Mat::zeros(3, 1, CV_64F);
+
+    t_mean.at<double>(0) = (t.at<double>(0)+t_hist.at<double>(0))/2.0;
+    t_mean.at<double>(1) = (t.at<double>(1)+t_hist.at<double>(1))/2.0;
+    t_mean.at<double>(2) = (t.at<double>(2)+t_hist.at<double>(2))/2.0;
+
+    return t_mean;
+}
+
+Mat meanRotation(Mat R, Mat R_hist){
+    Mat R_mean = Mat::eye(3, 3, CV_64F);
+
+    for(int i = 0; i < R_mean.cols; i++){
+        for(int j = 0; j < R_mean.rows; j++)
+            R_mean.at<double>(i,j) = atan2(sin(R.at<double>(i,j))+sin(R_hist.at<double>(i,j)),
+                                           cos(R.at<double>(i,j))+cos(R_hist.at<double>(i,j)));
+    }
+    return R_mean;
 }
 
 int main(int argc, char *argv[]) {
@@ -208,7 +229,7 @@ int main(int argc, char *argv[]) {
             cout<<"Erro na leitura do frame2"<<endl;
             break;
         }
-        cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
+
 
 //        drawMatches(frame1, kps1, frame2, kps2, good, output);
 //        Point2d pp = Point2d(319.50f, 239.50f);
@@ -218,10 +239,6 @@ int main(int argc, char *argv[]) {
         //Transformacao entre t e t+1
         getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
 
-        if(cont_hist == max_hist)
-            //Transformacao entre t-n e t+1
-            getTransformationsBetween2Frames(frame_hist, frame2, type_matcher, good, R_f_hist, t_f_hist, kps_hist, kps2); //ESSA FUNCAO CALCULA R E t
-
         float scale = .8;//getAbsoluteScale(num_frame, argv[2]);
         num_frame = num_frame+stepFrames+1;//Atualizando o índice do valor de escala
 
@@ -230,11 +247,24 @@ int main(int argc, char *argv[]) {
             t = t + scale*(R*t_f);
             R = R_f*R;
 
-            if(cont_hist == max_hist){
+            cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
+            if(cont_hist >= max_hist)
+                //Transformacao entre t-n e t+1
+                getTransformationsBetween2Frames(frame_hist, frame2, type_matcher, good, R_f_hist, t_f_hist, kps_hist, kps2); //ESSA FUNCAO CALCULA R E t
+
+            if(cont_hist >= max_hist){
                 t_hist = t_hist + scale*(R_hist*t_f_hist);
                 R_hist = R_f_hist*R_hist;
 
                 //COMPARAR AS DUAS ESTIMATIVAS (t,R com t_hist, R_hist)
+                Mat t_mean = meanTranslation(t, t_hist);
+                Mat R_mean = meanRotation(R, R_hist);
+
+                cout<<"-------------"<<endl;
+                cout<<"T:"<<t<<endl;
+                cout<<"T_hist:"<<t_hist<<endl;
+                cout<<"T_mean:"<<t_mean<<endl;
+
                 //Atualizando os parametros
                 cont_hist = max_hist-1;
                 allframes.front().copyTo(frame_hist);
@@ -245,6 +275,9 @@ int main(int argc, char *argv[]) {
                 allframes.erase(allframes.begin());
                 allt.erase(allt.begin());
                 allR.erase(allR.begin());
+
+                t = t_mean;
+                R = R_mean;
             }
             Mat aux;
             t.copyTo(aux);
