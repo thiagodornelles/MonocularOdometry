@@ -3,7 +3,8 @@
 #include <pangolin/display/device/display_glut.h>
 #include <GL/glut.h>
 #include <pangolin/pangolin.h>
-
+#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 #include <iostream>
 #include <cmath>
@@ -13,6 +14,7 @@
 
 using namespace std;
 using namespace pangolin;
+using namespace cv;
 
 struct CustomType
 {
@@ -30,11 +32,12 @@ struct CustomType
 class interface
 {
 public:
-    interface();
+    interface(vector<Point3f>* alt, vector<Point3f>* allGT);
 
     void Run();
-    void drawGT();
+    void drawSquad(Point3f point, bool gt);
     void drawVO();
+    void setImageData(unsigned char * imageArray, int size);
 
 
     float mViewpointX, mViewpointY, mViewpointZ, mViewpointF;
@@ -44,6 +47,10 @@ public:
     float mPointSize;
     float mCameraSize;
     float mCameraLineWidth;
+    vector<Point3f>* alltraj;
+    vector<Point3f>* allGT;
+
+    bool exemplo;
 
 };
 

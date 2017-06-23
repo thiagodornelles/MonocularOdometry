@@ -29,7 +29,7 @@ public:
     Odometry(int argc, char *argv[], bool showTrajectory3d);
 
     //Calcula o 'Scale' de uma imagem para outra
-    double getAbsoluteScale(int frame_id, char *address, Point2d& gt);
+    double getAbsoluteScale(int frame_id, char *address, Point2d &gt, Point3f &gt3d);
 
     //Feature Tracking usando OpticalFlow
     void featureTrackingOpticalFlow(Mat img1, Mat img2, vector<Point2f>& points1, vector<Point2f>& points2, vector<uchar>& status);
@@ -59,7 +59,9 @@ public:
     vector< vector<DMatch> > good;
     vector<KeyPoint> kps1, kps2, kps_hist;
     vector<Mat> allframes, allR, allt;
+    vector<Point3f> alltrajectory, alltrajGT;
     Point2d p0, gt;
+    Point3f gt3d;
 
     int max_hist;
     int num_frame;

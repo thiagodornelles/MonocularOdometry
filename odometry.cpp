@@ -32,13 +32,13 @@ Odometry::Odometry(int argc, char *argv[], bool showTrajectory3d)
 
     p0 = Point2d(150, 350);
     if(showTrajectory3d){
-        ginter = new interface();
+        ginter = new interface(&alltrajectory, &alltrajGT);
         Interf = new thread(&interface::Run, ginter);
     }
 }
 
 //Calcula o 'Scale' de uma imagem para outra
-double Odometry::getAbsoluteScale(int frame_id, char *address, Point2d& gt){
+double Odometry::getAbsoluteScale(int frame_id, char *address, Point2d &gt, Point3f &gt3d){
 
     string line;
     int i = 0;
@@ -72,7 +72,7 @@ double Odometry::getAbsoluteScale(int frame_id, char *address, Point2d& gt){
     }
     //  cout<<"PONTO DO GT:"<<endl;
     //  cout<<"X:"<<x_prev<<" Y:"<<y_prev<<" Z:"<<z_prev<<endl;
-
+    gt3d = Point3f(x_prev, y_prev, z_prev);
     float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao 2D do ponto do GT
     gt = Point2d((int)(z_prev*rot[0][0]+x_prev*rot[0][1])+150,
             (int)(z_prev*rot[1][0]+x_prev*rot[1][1])+350); //Ponto rotacionado e transladado
@@ -239,7 +239,7 @@ void Odometry::Run(){
             //Transformacao entre t e t+1
             getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
 
-            float scale = getAbsoluteScale(num_frame, address, gt);
+            float scale = getAbsoluteScale(num_frame, address, gt, gt3d);
 
             //ESSE IF FAZ MUITA DIFERENCA NA ESTIMATIVA. IF MILAGROSO!!!!!!!!
             if ((scale>0.1)&&(t_f.at<double>(2) > t_f.at<double>(0)) && (t_f.at<double>(2) > t_f.at<double>(1))) {
@@ -326,7 +326,8 @@ void Odometry::Run(){
             }else{ //SE NAO ENTROU NO IF MILAGROSO, DESCONSIDERO O FRAME2
                 continue;
             }
-
+            alltrajectory.push_back(Point3f(t.at<double>(0), t.at<double>(1), t.at<double>(2)));
+            alltrajGT.push_back(gt3d);
             float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao 2D do ponto da trajetoria
             Point2d p1 = Point2d((int)(t.at<double>(2)*rot[0][0]+t.at<double>(0)*rot[0][1]),
                     (int)(t.at<double>(2)*rot[1][0]+t.at<double>(0)*rot[1][1])); //Ponto rotacionado
@@ -366,7 +367,7 @@ void Odometry::Run(){
 
             imshow("Frame t+1", frame2);
             //        imshow("Output", output);
-            imshow("trajetoria", traj);
+//            imshow("trajetoria", traj);
             if(waitKey(0) == 'q') cap.release();
             good.clear();
             kps1.clear();
