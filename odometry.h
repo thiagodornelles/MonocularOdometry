@@ -8,7 +8,7 @@
 #include <string>
 #include <cstdlib>
 #include <thread>
-#include <interface.h>
+#include "interface.h"
 #include <opencv/cv.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -65,9 +65,10 @@ public:
     int num_frame;
     int cont_hist;
     float scale_hist;
-    thread* VOthread, Interface;
+    thread* VOthread;
+    thread* Interf;
 
-    interface* VO;
+    interface* ginter;
 
 };
 

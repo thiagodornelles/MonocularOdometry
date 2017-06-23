@@ -32,8 +32,8 @@ Odometry::Odometry(int argc, char *argv[], bool showTrajectory3d)
 
     p0 = Point2d(150, 350);
     if(showTrajectory3d){
-        VO = new interface();
-        VOthread = new thread(&interface::Run, VO);
+        ginter = new interface();
+        Interf = new thread(&interface::Run, ginter);
     }
 }
 
@@ -201,7 +201,7 @@ Mat Odometry::meanRotation(Mat R, Mat R_hist){
 
 void Odometry::Run(){
     while(1){
-        cout<<"TESTE"<<endl;
+        cout<<"TESTE run odometry"<<endl;
         if(!cap.isOpened()){
             cout<<"Erro ao abrir o video. Verifique o endereco informado"<<endl;
         }
