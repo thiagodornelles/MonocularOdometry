@@ -144,7 +144,7 @@ void Odometry::getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher 
             DMatch d2  = matches[i][1];
             //            cout<<"D1:"<<d1.distance<<endl<<"D2:"<<d2.distance<<endl<<endl;
 
-            if (d1.distance < 0.5 * d2.distance) {
+            if (d1.distance < 0.8 * d2.distance) {
                 vector<DMatch> v;
                 v.push_back(d1);
                 sum_good += d1.distance;

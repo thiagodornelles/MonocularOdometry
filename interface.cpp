@@ -3,9 +3,9 @@
 interface::interface(vector<Point3f> *allt, vector<Point3f> *allG)
 {
     mViewpointX = 0;
-    mViewpointY = -10;
+    mViewpointY = -100;
     mViewpointZ = -0.1;
-    mViewpointF = 200;
+    mViewpointF = 2000;
     mKeyFrameSize = 0.03;
     mKeyFrameLineWidth = 1;
     mGraphLineWidth = 1;
@@ -44,12 +44,13 @@ void interface::Run(){
 
     // Add named OpenGL viewport to window and provide 3D Handler
     View& d_cam1 = CreateDisplay().SetBounds(0.0, 1.0, pangolin::Attach::Pix(175), 1.0, -1024.0f/768.0f)
-            .SetAspect(640.0f/480.0f).SetHandler(new Handler3D(s_cam));
+            /*.SetAspect(640.0f/480.0f)*/.SetHandler(new Handler3D(s_cam));
 
     // Default hooks for exiting (Esc) and fullscreen (tab).
 
     OpenGlMatrix Twc;
-    Twc = ProjectionMatrix(1024, 768, 20, 20, 320, 240, 0.1, 1000);
+    Twc.SetIdentity();
+
     int t = 0;
     while( !pangolin::ShouldQuit() )
     {
@@ -90,52 +91,53 @@ void interface::setImageData(unsigned char * imageArray, int size){
 }
 
 void interface::drawSquad(Point3f point, bool gt){
+    float tam = 1.0;
     glColor3f(1,0,0);
     glBegin(GL_QUADS);
     glVertex3f(point.x+0,point.y+0,0+point.z);
-    glVertex3f(point.x+0,point.y+1,0+point.z);
-    glVertex3f(point.x+1,point.y+1,0+point.z);
-    glVertex3f(point.x+1,point.y+0,0+point.z);
+    glVertex3f(point.x+0,point.y+tam,0+point.z);
+    glVertex3f(point.x+tam,point.y+tam,0+point.z);
+    glVertex3f(point.x+tam,point.y+0,0+point.z);
     glEnd();
 
     (gt)?glColor3f(0,1,0):glColor3f(1,1,0);
     glBegin(GL_QUADS);
     glVertex3f(point.x+0,point.y+0,0+point.z);
-    glVertex3f(point.x+0,point.y+0,1+point.z);
-    glVertex3f(point.x+1,point.y+0,1+point.z);
-    glVertex3f(point.x+1,point.y+0,0+point.z);
+    glVertex3f(point.x+0,point.y+0,tam+point.z);
+    glVertex3f(point.x+tam,point.y+0,tam+point.z);
+    glVertex3f(point.x+tam,point.y+0,0+point.z);
     glEnd();
 
     glColor3f(0,0,1);
     glBegin(GL_QUADS);
-    glVertex3f(point.x+0,point.y+0,1+point.z);
-    glVertex3f(point.x+0,point.y+1,1+point.z);
-    glVertex3f(point.x+1,point.y+1,1+point.z);
-    glVertex3f(point.x+1,point.y+0,1+point.z);
+    glVertex3f(point.x+0,point.y+0,tam+point.z);
+    glVertex3f(point.x+0,point.y+tam,tam+point.z);
+    glVertex3f(point.x+tam,point.y+tam,tam+point.z);
+    glVertex3f(point.x+tam,point.y+0,tam+point.z);
     glEnd();
 
     glColor3f(0,1,1);
     glBegin(GL_QUADS);
-    glVertex3f(point.x+1,point.y+1,1+point.z);
-    glVertex3f(point.x+0,point.y+1,1+point.z);
-    glVertex3f(point.x+0,point.y+1,0+point.z);
-    glVertex3f(point.x+1,point.y+1,0+point.z);
+    glVertex3f(point.x+tam,point.y+tam,tam+point.z);
+    glVertex3f(point.x+0,point.y+tam,tam+point.z);
+    glVertex3f(point.x+0,point.y+tam,0+point.z);
+    glVertex3f(point.x+tam,point.y+tam,0+point.z);
     glEnd();
 
     glColor3f(1,0,1);
     glBegin(GL_QUADS);
-    glVertex3f(point.x+1,point.y+1,1+point.z);
-    glVertex3f(point.x+1,point.y+0,1+point.z);
-    glVertex3f(point.x+1,point.y+0,0+point.z);
-    glVertex3f(point.x+1,point.y+1,0+point.z);
+    glVertex3f(point.x+tam,point.y+tam,tam+point.z);
+    glVertex3f(point.x+tam,point.y+0,tam+point.z);
+    glVertex3f(point.x+tam,point.y+0,0+point.z);
+    glVertex3f(point.x+tam,point.y+tam,0+point.z);
     glEnd();
 
     glColor3f(1,1,1);
     glBegin(GL_QUADS);
-    glVertex3f(point.x+0,point.y+1,1+point.z);
-    glVertex3f(point.x+0,point.y+0,1+point.z);
+    glVertex3f(point.x+0,point.y+tam,tam+point.z);
+    glVertex3f(point.x+0,point.y+0,tam+point.z);
     glVertex3f(point.x+0,point.y+0,0+point.z);
-    glVertex3f(point.x+0,point.y+1,0+point.z);
+    glVertex3f(point.x+0,point.y+tam,0+point.z);
     glEnd();
 
 }
