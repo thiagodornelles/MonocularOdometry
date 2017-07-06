@@ -36,6 +36,7 @@ void interface::Run(){
     pangolin::Var<bool> menuGT("menu.Ground-Truth",false,true);
     pangolin::Var<bool> menuTRAJ("menu.Trajectory",false,true);
     pangolin::Var<bool> menuFLL("menu.Follow",false,true);
+    pangolin::Var<bool> menuError("menu.Error",false,true);
 
     // Define Camera Render Object (for view / scene browsing)
     OpenGlRenderState s_cam(ProjectionMatrix(1024,768,mViewpointF,mViewpointF,512,389,0.1,1000),
@@ -66,15 +67,27 @@ void interface::Run(){
         d_cam1.Activate(s_cam);
         //            pangolin::glDrawColouredCube();
         if(menuTRAJ){
-            for(int i = 0; i < alltraj->size(); i++)
-                //                    cout<<"TESTE"<<alltraj->at(i).x<<endl;
-                drawSquad(alltraj->at(i), false);
+            float color[4] = {0, 0.8, 0, 1};
+            drawSquad(alltraj->at(0), color);
+            for(int i = 1; i < alltraj->size(); i++){
+                drawSquad(alltraj->at(i), color);
+                drawLine(alltraj->at(i-1), alltraj->at(i),color);
+            }
         }
 
         if(menuGT){
-            for(int i = 0; i < allGT->size(); i++)
-                //                    cout<<"TESTE"<<alltraj->at(i).x<<endl;
-                drawSquad(allGT->at(i), true);
+            float color[4] = {0.8, 0, 0, 1};
+            drawSquad(allGT->at(0), color);
+            for(int i = 1; i < allGT->size(); i++){
+                drawSquad(allGT->at(i), color);
+                drawLine(allGT->at(i-1), allGT->at(i),color);
+            }
+        }
+        if(menuError){
+            for(int i = 0; i < alltraj->size(); i++){
+                float color[4] = {0, 0, 1, 1};
+                drawLine(alltraj->at(i), allGT->at(i), color);
+            }
         }
 
 
@@ -90,54 +103,100 @@ void interface::setImageData(unsigned char * imageArray, int size){
     }
 }
 
-void interface::drawSquad(Point3f point, bool gt){
-    float tam = 1.0;
-    glColor3f(1,0,0);
-    glBegin(GL_QUADS);
-    glVertex3f(point.x+0,point.y+0,0+point.z);
-    glVertex3f(point.x+0,point.y+tam,0+point.z);
-    glVertex3f(point.x+tam,point.y+tam,0+point.z);
-    glVertex3f(point.x+tam,point.y+0,0+point.z);
-    glEnd();
+void interface::drawSquad(Point3f center,float color[4]){
 
-    (gt)?glColor3f(0,1,0):glColor3f(1,1,0);
     glBegin(GL_QUADS);
-    glVertex3f(point.x+0,point.y+0,0+point.z);
-    glVertex3f(point.x+0,point.y+0,tam+point.z);
-    glVertex3f(point.x+tam,point.y+0,tam+point.z);
-    glVertex3f(point.x+tam,point.y+0,0+point.z);
-    glEnd();
 
-    glColor3f(0,0,1);
-    glBegin(GL_QUADS);
-    glVertex3f(point.x+0,point.y+0,tam+point.z);
-    glVertex3f(point.x+0,point.y+tam,tam+point.z);
-    glVertex3f(point.x+tam,point.y+tam,tam+point.z);
-    glVertex3f(point.x+tam,point.y+0,tam+point.z);
-    glEnd();
+        //Bottom
+        drawCubeFace(center, 0, color);
 
-    glColor3f(0,1,1);
-    glBegin(GL_QUADS);
-    glVertex3f(point.x+tam,point.y+tam,tam+point.z);
-    glVertex3f(point.x+0,point.y+tam,tam+point.z);
-    glVertex3f(point.x+0,point.y+tam,0+point.z);
-    glVertex3f(point.x+tam,point.y+tam,0+point.z);
-    glEnd();
+        //Top
+        drawCubeFace(center, 1, color);
 
-    glColor3f(1,0,1);
-    glBegin(GL_QUADS);
-    glVertex3f(point.x+tam,point.y+tam,tam+point.z);
-    glVertex3f(point.x+tam,point.y+0,tam+point.z);
-    glVertex3f(point.x+tam,point.y+0,0+point.z);
-    glVertex3f(point.x+tam,point.y+tam,0+point.z);
-    glEnd();
+        //Back
+        drawCubeFace(center, 2, color);
 
-    glColor3f(1,1,1);
-    glBegin(GL_QUADS);
-    glVertex3f(point.x+0,point.y+tam,tam+point.z);
-    glVertex3f(point.x+0,point.y+0,tam+point.z);
-    glVertex3f(point.x+0,point.y+0,0+point.z);
-    glVertex3f(point.x+0,point.y+tam,0+point.z);
-    glEnd();
+        //Front
+        drawCubeFace(center, 3, color);
 
+        //Right
+        drawCubeFace(center, 4, color);
+
+        //Left
+        drawCubeFace(center, 5, color);
+
+    glEnd();  // End of drawing color-cube
+
+}
+
+void interface::drawCubeFace(Point3f center, int side, float color[4])
+{
+    float size = 1;
+    float factor = 0.2;
+
+    switch(side) {
+        //Bottom
+        case 0:
+            glColor4f(color[0]-(2*factor), color[1]-(2*factor), color[2]-(2*factor), color[3]);
+            glVertex3f(center.x+size, center.y+size, center.z);
+            glVertex3f(center.x, center.y+size, center.z);
+            glVertex3f(center.x, center.y+size, center.z+size);
+            glVertex3f(center.x+size, center.y+size, center.z+size);
+        break;
+
+        //Top
+        case 1:
+            glColor4f(color[0]+factor, color[1]+factor, color[2]+factor, color[3]);
+            glVertex3f(center.x+size, center.y, center.z+size);
+            glVertex3f(center.x, center.y, center.z+size);
+            glVertex3f(center.x, center.y, center.z);
+            glVertex3f(center.x+size, center.y, center.z);
+        break;
+
+        //Back
+        case 2:
+            glColor4f(color[0]-factor, color[1]-factor, color[2]-factor, color[3]);
+            glVertex3f(center.x+size, center.y+size, center.z+size);
+            glVertex3f(center.x, center.y+size, center.z+size);
+            glVertex3f(center.x, center.y, center.z+size);
+            glVertex3f(center.x+size, center.y, center.z+size);
+        break;
+
+        //Front
+        case 3:
+            glColor4f(color[0]-factor, color[1]-factor, color[2]-factor, color[3]);
+            glVertex3f(center.x+size, center.y, center.z);
+            glVertex3f(center.x, center.y, center.z);
+            glVertex3f(center.x, center.y+size, center.z);
+            glVertex3f(center.x+size, center.y+size, center.z);
+        break;
+
+        //Right
+        case 4:
+            glColor4f(color[0], color[1], color[2], color[3]);
+            glVertex3f(center.x+size, center.y+size, center.z);
+            glVertex3f(center.x+size, center.y+size, center.z+size);
+            glVertex3f(center.x+size, center.y, center.z+size);
+            glVertex3f(center.x+size, center.y, center.z);
+        break;
+
+        //Left
+        case 5:
+            glColor4f(color[0], color[1], color[2], color[3]);
+            glVertex3f(center.x, center.y+size, center.z+size);
+            glVertex3f(center.x, center.y+size, center.z);
+            glVertex3f(center.x, center.y, center.z);
+            glVertex3f(center.x, center.y, center.z+size);
+        break;
+    }
+}
+
+
+void interface::drawLine(Point3f point1, Point3f point2, float color[4]){
+    glColor4f(color[0], color[1], color[2], color[3]);
+    glLineWidth(6);
+    glBegin(GL_LINES);
+    glVertex3f(point1.x+.5, point1.y+.5, point1.z+.5);
+    glVertex3f(point2.x+.5, point2.y+.5, point2.z+.5);
+    glEnd();
 }

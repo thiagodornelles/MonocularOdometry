@@ -35,7 +35,10 @@ public:
     interface(vector<Point3f>* alt, vector<Point3f>* allGT);
 
     void Run();
-    void drawSquad(Point3f point, bool gt);
+    void drawSquad(Point3f point, float color[]);
+    void drawLine(Point3f point1, Point3f point2, float color[]);
+    void drawCubeFace(Point3f center, int side, float color[]);
+
     void drawVO();
     void setImageData(unsigned char * imageArray, int size);
 
