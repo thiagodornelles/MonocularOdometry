@@ -32,7 +32,7 @@ struct CustomType
 class interface
 {
 public:
-    interface(vector<Point3f>* alt, vector<Point3f>* allGT);
+    interface(vector<Point3f>* alt, vector<Point3f>* allGT, vector<float>* error);
 
     void Run();
     void drawSquad(Point3f point, float color[]);
@@ -52,7 +52,7 @@ public:
     float mCameraLineWidth;
     vector<Point3f>* alltraj;
     vector<Point3f>* allGT;
-
+    vector<float>* error;
     bool exemplo;
 
 };

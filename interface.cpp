@@ -1,6 +1,6 @@
 #include "interface.h"
 
-interface::interface(vector<Point3f> *allt, vector<Point3f> *allG)
+interface::interface(vector<Point3f> *allt, vector<Point3f> *allG, vector<float> *err)
 {
     mViewpointX = 0;
     mViewpointY = -100;
@@ -16,7 +16,7 @@ interface::interface(vector<Point3f> *allt, vector<Point3f> *allG)
     exemplo = true;
     alltraj = allt;
     allGT = allG;
-
+    error = err;
 }
 
 
@@ -60,8 +60,13 @@ void interface::Run(){
 
         glColor3f(1.0,1.0,1.0);
         if(menuFLL){
-            s_cam.SetModelViewMatrix(ModelViewLookAt(mViewpointX, mViewpointY, mViewpointZ, 0,0,0,0,-1.0,0));
-            //                s_cam.Follow(Twc);
+            //Media pontual entre a traj estimada e o GT
+            float x = (alltraj->at(alltraj->size()-1).x + allGT->at(allGT->size()-1).x)/2.0;
+            float y = (alltraj->at(alltraj->size()-1).y + allGT->at(allGT->size()-1).y)/2.0;
+            float z = (alltraj->at(alltraj->size()-1).z + allGT->at(allGT->size()-1).z)/2.0;
+            cout<<"X:"<<x<<" Y:"<<y<<endl;
+            s_cam.SetModelViewMatrix(ModelViewLookAt(mViewpointX, mViewpointY, mViewpointZ, x,y,z,0,-.5,0));
+//            s_cam.Follow(Twc);
         }
         t++;
         d_cam1.Activate(s_cam);
@@ -72,6 +77,7 @@ void interface::Run(){
             for(int i = 1; i < alltraj->size(); i++){
                 drawSquad(alltraj->at(i), color);
                 drawLine(alltraj->at(i-1), alltraj->at(i),color);
+                cout<<"ERROR:"<<error->at(i)<<endl;
             }
         }
 

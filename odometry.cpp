@@ -32,7 +32,7 @@ Odometry::Odometry(int argc, char *argv[], bool showTrajectory3d)
 
     p0 = Point2d(150, 350);
     if(showTrajectory3d){
-        ginter = new interface(&alltrajectory, &alltrajGT);
+        ginter = new interface(&alltrajectory, &alltrajGT, &error);
         Interf = new thread(&interface::Run, ginter);
     }
 }
@@ -313,6 +313,7 @@ void Odometry::Run(){
                         t = t_mean;
                         R = R_mean;
 
+
                     }
                     scale_hist = 0;
                 }
@@ -328,6 +329,8 @@ void Odometry::Run(){
             }
             alltrajectory.push_back(Point3f(t.at<double>(0), t.at<double>(1), t.at<double>(2)));
             alltrajGT.push_back(gt3d);
+            euclidianDistance(gt3d, alltrajectory.at(alltrajectory.size()-1));
+
             float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao 2D do ponto da trajetoria
             Point2d p1 = Point2d((int)(t.at<double>(2)*rot[0][0]+t.at<double>(0)*rot[0][1]),
                     (int)(t.at<double>(2)*rot[1][0]+t.at<double>(0)*rot[1][1])); //Ponto rotacionado
@@ -381,4 +384,10 @@ void Odometry::Run(){
 void Odometry::initialize(){
     cout<<"Inicializando a thread do Visual Odometry"<<endl;
     VOthread = new thread(&Odometry::Run, this);
+}
+
+void Odometry::euclidianDistance(Point3f gt, Point3f est){
+    float er;
+    er = sqrt(pow(gt.x-est.x,2) + pow(gt.y-est.y,2) + pow(gt.z-est.z,2));
+    error.push_back(er);
 }

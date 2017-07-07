@@ -44,6 +44,8 @@ public:
 
     Mat meanRotation(Mat R, Mat R_hist);
 
+    void euclidianDistance(Point3f gt, Point3f est);
+
     void Run();
 
     void initialize();
@@ -61,6 +63,7 @@ public:
     vector<KeyPoint> kps1, kps2, kps_hist;
     vector<Mat> allframes, allR, allt;
     vector<Point3f> alltrajectory, alltrajGT;
+    vector<float> error;
     Point2d p0, gt;
     Point3f gt3d;
 
