@@ -30,3 +30,5 @@ LIBS += -L/usr/local/opt/opencv3/lib \
     -lopencv_photo \
     -lopencv_video \
     -lopencv_videoio \
+
+CONFIG -= app_bundle
