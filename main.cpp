@@ -17,11 +17,14 @@ using namespace cv;
 
 enum Matcher {KNN, Optical};
 
+double dist = 0;
+double totaldist = 0;
+Mat edges;
 
 double euclidianDistance(Point2d gt, Point2d est){
-    double er = sqrt(pow(gt.x-est.x,2) + pow(gt.y-est.y,2));
-    cerr << "Error:" << er << endl;
-    return er;
+    double x = gt.x - est.x;
+    double y = gt.y - est.y;
+    return sqrt(x*x + y*y);
 }
 
 Point2d getGroundTruth(int frame_id, char *address){
@@ -206,7 +209,7 @@ int main(int argc, char *argv[]) {
     const int desly = 500;
     Point2d p0 = Point2d(deslx, desly);
     vector<uchar> status;
-    int num_frame = 1;
+    int num_frame = 0;
 
     //Comecando a analisar o video
     cap >> frame1;
@@ -248,14 +251,14 @@ int main(int argc, char *argv[]) {
                 }
             }
             else {
-                Mat edges;
-                Canny(frame1, edges, 90, 100);
+                blur(frame1, frame1, Size(3,3));
+                Canny(frame1, edges, 60, 100);
                 int step = 5;
                 for (int row = 0; row < edges.rows; row+=step) {
                     unsigned char *data = edges.ptr(row);
                     for (int col = 0; col < edges.cols; col+=step) {
                         int value = *data;
-                        if (value > 150){
+                        if (value > 0){
                             points1.push_back(Point2f(col, row));
                         }
                         data+=step;
@@ -263,7 +266,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             featureTrackingOpticalFlow(frame1, frame2, points1, points2, status);
-            //imshow("bordas", edges);
+//            imshow("bordas", edges);
         }
         if(points1.size() < 10){
             frame2.copyTo(frame1);
@@ -314,7 +317,7 @@ int main(int argc, char *argv[]) {
             t = t + scale*(R*t_f);
             R = R_f*R;
             validFrame = true;
-        }
+        }        
 
         float angle = 80.1;
         //float angle = 78.9;
@@ -329,12 +332,12 @@ int main(int argc, char *argv[]) {
         p0 = p1;
         Point2d pg1, pg2;
         if (strcmp(argv[5], "ICL") == 0){
-            pg1 = getGroundTruthICL(num_frame-1, argv[2]);
-            pg2 = getGroundTruthICL(num_frame, argv[2]);
+            pg1 = getGroundTruthICL(num_frame-2, argv[2]);
+            pg2 = getGroundTruthICL(num_frame-1, argv[2]);
         }
         else {
-            pg1 = getGroundTruth(num_frame-1, argv[2]);
-            pg2 = getGroundTruth(num_frame, argv[2]);
+            pg1 = getGroundTruth(num_frame-2, argv[2]);
+            pg2 = getGroundTruth(num_frame-1, argv[2]);
         }
         pg1.x += deslx;
         pg1.y += desly;
@@ -343,8 +346,13 @@ int main(int argc, char *argv[]) {
         line(traj, pg1, pg2, cvScalar(0,0,255), 2);
 
         //Medindo o erro
-        double dist = euclidianDistance(pg2, p1);
-        //cerr << dist << endl;
+        if (validFrame) {
+            dist += euclidianDistance(pg2, p1);
+            totaldist += euclidianDistance(pg1, pg2);
+//            cerr << "Erro: " << dist << endl;
+//            cerr << "Dist percorrida: " << totaldist << endl;
+//            cerr << "____________" << endl;
+        }
 
         frame2.copyTo(frame1);        
         if (type_matcher == KNN) {
@@ -370,6 +378,12 @@ int main(int argc, char *argv[]) {
         imshow("trajetoria", traj);
         imshow("Frame t+1", frame2);
         int k = waitKey(1);
+        if(num_frame == 1000){
+            cap.release();
+            cerr << "erro acc: " << dist << endl;
+            cerr << "dist percorrida: " << totaldist << endl;
+            cerr << "err/dist: " << double(dist/totaldist) << endl;
+        }
         if(k == 'q') cap.release();
         if(k == 'p') waitKey(0);
         good.clear();
