@@ -37,6 +37,30 @@ Odometry::Odometry(int argc, char *argv[], bool showTrajectory3d)
     }
 }
 
+Point2d Odometry::getGroundTruth(int frame_id, char *address){
+    string line;
+    int i = 0;
+    ifstream myfile (address);
+    double x = 0, y = 0, z = 0;
+    if (myfile.is_open()) {
+        while (( getline (myfile,line) ) && (i <= frame_id)) {
+            std::istringstream in(line);
+            //cout << line << '\n';
+            for (int j=0; j<12; j++)  {
+                in >> z ;
+                if (j==7) y=z;
+                if (j==3)  x=z;
+            }
+            i++;
+        }
+        myfile.close();
+    }
+    else {
+        cout << "Unable to open file";
+    }
+    return Point2d(x,-z);
+}
+
 //Calcula o 'Scale' de uma imagem para outra
 double Odometry::getAbsoluteScale(int frame_id, char *address, Point2d &gt, Point3f &gt3d){
 
@@ -115,10 +139,9 @@ void Odometry::featureDetection(Mat img_1, vector<Point2f>& points1)	{   //USA F
 }
 
 
-void Odometry::getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_matcher, vector< vector<DMatch> >& good, Mat& R_f, Mat& t_f, vector<KeyPoint>& kps1, vector<KeyPoint>& kps2){
+bool Odometry::getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_matcher, vector< vector<DMatch> >& good, Mat& R_f, Mat& t_f, vector<KeyPoint>& kps1, vector<KeyPoint>& kps2, vector<Point2f>& points1, vector<Point2f>& points2){
     Mat desc1, desc2;
 
-    vector<Point2f> points1, points2;
     vector< vector<DMatch> > matches;
 
     Mat E;
@@ -158,6 +181,24 @@ void Odometry::getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher 
         //        cout<<"SUM:"<<sum_good<<endl;
     }else{
         featureDetection(frame1,points1);
+        //------------------
+        points1.clear();
+        Mat edges;
+        Canny(frame1, edges, 90, 100);
+        int step = 5;
+        for(int row = 0; row < edges.rows; row+= step){
+            unsigned char *data = edges.ptr(row);
+            for(int col = 0; col < edges.cols; col+=step){
+                int value = *data;
+                if(value > 100){
+                    points1.push_back(Point2f(col, row));
+                }else{
+                    *data = 0;
+                }
+                data+=step;
+            }
+        }
+        //------------------
         featureTrackingOpticalFlow(frame1, frame2, points1, points2, status);
     }
     if(points1.size() < 10){
@@ -170,9 +211,11 @@ void Odometry::getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher 
         points2.clear();
         R_f = 0;
         t_f = 0;
+        return false;
     }else{
         E = findEssentialMat(points2, points1, /*1.f/-480.f*/focal, pp, RANSAC, 0.9999999);
         recoverPose(E, points2, points1, R_f, t_f, focal, pp);
+        return true;
     }
 }
 
@@ -183,8 +226,8 @@ Mat Odometry::meanTranslation(Mat t, Mat t_hist){
     t_mean.at<double>(1) = (t.at<double>(1)+t_hist.at<double>(1))/2.0;
     t_mean.at<double>(2) = (t.at<double>(2)+t_hist.at<double>(2))/2.0;
 
-    //    return t_mean;
-    return t;
+//    return t_mean;
+        return t;
 }
 
 Mat Odometry::meanRotation(Mat R, Mat R_hist){
@@ -200,6 +243,7 @@ Mat Odometry::meanRotation(Mat R, Mat R_hist){
 }
 
 void Odometry::Run(){
+    bool result;
     while(1){
         cout<<"TESTE run odometry"<<endl;
         if(!cap.isOpened()){
@@ -237,7 +281,8 @@ void Odometry::Run(){
 
             Mat t_f, R_f;
             //Transformacao entre t e t+1
-            getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2); //ESSA FUNCAO CALCULA R E t
+            result = getTransformationsBetween2Frames(frame1, frame2, type_matcher, good, R_f, t_f, kps1, kps2, points1, points2); //ESSA FUNCAO CALCULA R E t
+            if(!result) continue;
 
             float scale = getAbsoluteScale(num_frame, address, gt, gt3d);
 
@@ -254,6 +299,9 @@ void Odometry::Run(){
                 t = t + scale*(R*t_f);
                 R = R_f*R;
 
+                cout<<"NUM_FRAME:"<<num_frame<<endl;
+                cout<<"T:"<<t<<endl<<" R:"<<R<<endl;
+
                 cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
 
                 if(cont_hist >= max_hist){
@@ -262,7 +310,8 @@ void Odometry::Run(){
                     vector< vector<DMatch> > good_hist;
                     vector<KeyPoint> kps2_hist, kps_hist;
 
-                    getTransformationsBetween2Frames(frame_hist, frame2, type_matcher, good_hist, R_f_hist, t_f_hist, kps_hist, kps2_hist); //ESSA FUNCAO CALCULA R E t
+                    result = getTransformationsBetween2Frames(frame_hist, frame2, type_matcher, good_hist, R_f_hist, t_f_hist, kps_hist, kps2_hist, points1, points2); //ESSA FUNCAO CALCULA R E t
+                    if(!result)continue;
 
                     Mat t_mean = t;
                     Mat R_mean = R;
@@ -286,14 +335,34 @@ void Odometry::Run(){
                             //                    cout<<"R_mean:"<<R_mean<<endl<<endl;
 
 
-                            //Desenhando as features da transformacao entre "frame_hist" e "frame2"
-                            for (int i = 0; i < good_hist.size(); ++i) {
-                                DMatch d1  = good_hist[i][0];
-                                KeyPoint kt1 = kps_hist.at(d1.queryIdx);
-                                KeyPoint kt2 = kps2_hist.at(d1.trainIdx);
-                                circle(frame_hist, kt1.pt, 1, cvScalar(255,0,0));
-                                line(frame_hist, kt1.pt, kt2.pt, cvScalar(0,255,0));
-                                circle(frame_hist, kt2.pt, 1, cvScalar(0,0,255));
+//                            //Desenhando as features da transformacao entre "frame_hist" e "frame2"
+//                            for (int i = 0; i < good_hist.size(); ++i) {
+//                                DMatch d1  = good_hist[i][0];
+//                                KeyPoint kt1 = kps_hist.at(d1.queryIdx);
+//                                KeyPoint kt2 = kps2_hist.at(d1.trainIdx);
+//                                circle(frame_hist, kt1.pt, 1, cvScalar(255,0,0));
+//                                line(frame_hist, kt1.pt, kt2.pt, cvScalar(0,255,0));
+//                                circle(frame_hist, kt2.pt, 1, cvScalar(0,0,255));
+//                            }
+                            if (type_matcher == KNN) {
+                                for (int i = 0; i < good.size(); ++i) {
+                                    DMatch d1  = good[i][0];
+                                    KeyPoint kt1 = kps1.at(d1.queryIdx);
+                                    KeyPoint kt2 = kps2.at(d1.trainIdx);
+                                    circle(frame2, kt1.pt, 1, cvScalar(255,0,0));
+                                    line(frame2, kt1.pt, kt2.pt, cvScalar(0,255,0));
+                                    circle(frame2, kt2.pt, 1, cvScalar(0,0,255));
+                                }
+                            }
+                            else {
+                                for (int i = 0; i < points2.size(); ++i) {
+                                    Point2f p1 = points1[i];
+                                    Point2f p2 = points2[i];
+                                    circle(frame2, Point(p1.x, p1.y), 2, cvScalar(255,0,0),-1);
+                                    line(frame2, Point(p1.x, p1.y), Point(p2.x, p2.y),
+                                         cvScalar(0,0,255), 1);
+                                    circle(frame2, Point(p2.x, p2.y), 2, cvScalar(0,255,0),-1);
+                                }
                             }
                         }
                         //Atualizando o contador da janela do "hist"
@@ -370,8 +439,8 @@ void Odometry::Run(){
 
             imshow("Frame t+1", frame2);
             //        imshow("Output", output);
-//            imshow("trajetoria", traj);
-            if(waitKey(0) == 'q') cap.release();
+            //            imshow("trajetoria", traj);
+//            if(waitKey(0) == 'q') cap.release();
             good.clear();
             kps1.clear();
             kps2.clear();

@@ -35,6 +35,7 @@ public:
     interface(vector<Point3f>* alt, vector<Point3f>* allGT, vector<float>* error);
 
     void Run();
+    void Run2();
     void drawSquad(Point3f point, float color[]);
     void drawLine(Point3f point1, Point3f point2, float color[]);
     void drawCubeFace(Point3f center, int side, float color[]);

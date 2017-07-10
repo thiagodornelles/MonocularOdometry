@@ -77,6 +77,96 @@ void interface::Run(){
             for(int i = 1; i < alltraj->size(); i++){
                 drawSquad(alltraj->at(i), color);
                 drawLine(alltraj->at(i-1), alltraj->at(i),color);
+//                cout<<"ERROR:"<<error->at(i)<<endl;
+            }
+        }
+
+        if(menuGT){
+            float color[4] = {0.8, 0, 0, 1};
+            drawSquad(allGT->at(0), color);
+            for(int i = 1; i < allGT->size(); i++){
+                drawSquad(allGT->at(i), color);
+                drawLine(allGT->at(i-1), allGT->at(i),color);
+            }
+        }
+        if(menuError){
+            for(int i = 0; i < alltraj->size(); i++){
+                float color[4] = {0, 0, 1, 1};
+                drawLine(alltraj->at(i), allGT->at(i), color);
+            }
+        }
+
+
+        pangolin::FinishFrame();
+    }
+
+}
+
+void interface::Run2(){
+    pangolin::CreateWindowAndBind("Visual Odometry",1024,768);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // 3D Mouse handler requires depth testing to be enabled
+    glEnable(GL_DEPTH_TEST);
+
+    // Issue specific OpenGl we might need
+    glEnable (GL_BLEND);
+    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    pangolin::CreatePanel("menu").SetBounds(0.0,1.0,0.0,pangolin::Attach::Pix(175));
+    pangolin::Var<bool> menuGT("menu.Ground-Truth",false,true);
+    pangolin::Var<bool> menuTRAJ("menu.Trajectory",false,true);
+    pangolin::Var<bool> menuFLL("menu.Follow",false,true);
+    pangolin::Var<bool> menuError("menu.Error",false,true);
+
+    // Define Camera Render Object (for view / scene browsing)
+    OpenGlRenderState s_cam(ProjectionMatrix(1024,768,mViewpointF,mViewpointF,512,389,0.1,1000),
+                            ModelViewLookAt(mViewpointX,mViewpointY,mViewpointZ, 0,0,0,0.0,-1.0, 0.0));
+
+
+    // Add named OpenGL viewport to window and provide 3D Handler
+    View& d_cam1 = Display("d").SetBounds(0.0, 1.0, pangolin::Attach::Pix(175), 1.0, -1024.0f/768.0f)
+            /*.SetAspect(640.0f/480.0f)*/.SetHandler(new Handler3D(s_cam));
+
+
+    View& d_image = Display("image").SetBounds(0, 1.0, Attach::Pix(175), 1.0, 640.0/480).SetLock(LockRight, LockBottom);
+
+    // Default hooks for exiting (Esc) and fullscreen (tab).
+
+    const int width =  300;
+    const int height = 300;
+
+    unsigned char* imageArray = new unsigned char[3*width*height];
+    pangolin::GlTexture imageTexture(width,height,GL_RGB,false,0,GL_RGB,GL_UNSIGNED_BYTE);
+
+
+    int t = 0;
+    while( !pangolin::ShouldQuit() )
+    {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //            Twc = ProjectionMatrix(0,0,30, 30, 30, 30, 1,1);
+
+
+        glColor3f(1.0,1.0,1.0);
+        if(menuFLL){
+            //Media pontual entre a traj estimada e o GT
+            float x = (alltraj->at(alltraj->size()-1).x + allGT->at(allGT->size()-1).x)/2.0;
+            float y = (alltraj->at(alltraj->size()-1).y + allGT->at(allGT->size()-1).y)/2.0;
+            float z = (alltraj->at(alltraj->size()-1).z + allGT->at(allGT->size()-1).z)/2.0;
+            cout<<"X:"<<x<<" Y:"<<y<<endl;
+            s_cam.SetModelViewMatrix(ModelViewLookAt(mViewpointX, mViewpointY, mViewpointZ, x,y,z,0,-.5,0));
+//            s_cam.Follow(Twc);
+        }
+        t++;
+        d_cam1.Activate(s_cam);
+        //            pangolin::glDrawColouredCube();
+        if(menuTRAJ){
+            float color[4] = {0, 0.8, 0, 1};
+            drawSquad(alltraj->at(0), color);
+            for(int i = 1; i < alltraj->size(); i++){
+                drawSquad(alltraj->at(i), color);
+                drawLine(alltraj->at(i-1), alltraj->at(i),color);
                 cout<<"ERROR:"<<error->at(i)<<endl;
             }
         }
@@ -96,6 +186,15 @@ void interface::Run(){
             }
         }
 
+
+        //Set some random image data and upload to GPU
+        setImageData(imageArray,3*width*height);
+        imageTexture.Upload(imageArray,GL_RGB,GL_UNSIGNED_BYTE);
+
+        //display the image
+        d_image.Activate();
+        glColor3f(1.0,1.0,1.0);
+        imageTexture.RenderToViewport();
 
         pangolin::FinishFrame();
     }

@@ -29,6 +29,7 @@ class Odometry
 public:
     Odometry(int argc, char *argv[], bool showTrajectory3d);
 
+    Point2d getGroundTruth(int frame_id, char *address);
     //Calcula o 'Scale' de uma imagem para outra
     double getAbsoluteScale(int frame_id, char *address, Point2d &gt, Point3f &gt3d);
 
@@ -38,7 +39,7 @@ public:
     //Feature Detection usando FAST
     void featureDetection(Mat img_1, vector<Point2f>& points1);
 
-    void getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_matcher, vector< vector<DMatch> >& good, Mat& R_f, Mat& t_f, vector<KeyPoint>& kps1, vector<KeyPoint>& kps2);
+    bool getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher type_matcher, vector< vector<DMatch> >& good, Mat& R_f, Mat& t_f, vector<KeyPoint>& kps1, vector<KeyPoint>& kps2, vector<Point2f>& points1, vector<Point2f>& points2);
 
     Mat meanTranslation(Mat t, Mat t_hist);
 
@@ -61,6 +62,7 @@ public:
 
     vector< vector<DMatch> > good;
     vector<KeyPoint> kps1, kps2, kps_hist;
+    vector<Point2f> points1, points2;
     vector<Mat> allframes, allR, allt;
     vector<Point3f> alltrajectory, alltrajGT;
     vector<float> error;
