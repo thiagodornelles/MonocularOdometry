@@ -64,7 +64,7 @@ void interface::Run(){
             float x = (alltraj->at(alltraj->size()-1).x + allGT->at(allGT->size()-1).x)/2.0;
             float y = (alltraj->at(alltraj->size()-1).y + allGT->at(allGT->size()-1).y)/2.0;
             float z = (alltraj->at(alltraj->size()-1).z + allGT->at(allGT->size()-1).z)/2.0;
-            cout<<"X:"<<x<<" Y:"<<y<<endl;
+//            cout<<"X:"<<x<<" Y:"<<y<<endl;
             s_cam.SetModelViewMatrix(ModelViewLookAt(mViewpointX, mViewpointY, mViewpointZ, x,y,z,0,-.5,0));
 //            s_cam.Follow(Twc);
         }
@@ -154,7 +154,7 @@ void interface::Run2(){
             float x = (alltraj->at(alltraj->size()-1).x + allGT->at(allGT->size()-1).x)/2.0;
             float y = (alltraj->at(alltraj->size()-1).y + allGT->at(allGT->size()-1).y)/2.0;
             float z = (alltraj->at(alltraj->size()-1).z + allGT->at(allGT->size()-1).z)/2.0;
-            cout<<"X:"<<x<<" Y:"<<y<<endl;
+//            cout<<"X:"<<x<<" Y:"<<y<<endl;
             s_cam.SetModelViewMatrix(ModelViewLookAt(mViewpointX, mViewpointY, mViewpointZ, x,y,z,0,-.5,0));
 //            s_cam.Follow(Twc);
         }

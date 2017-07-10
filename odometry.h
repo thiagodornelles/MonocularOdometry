@@ -8,6 +8,7 @@
 #include <string>
 #include <cstdlib>
 #include <thread>
+#include <math.h>
 #include "interface.h"
 #include <opencv/cv.h>
 #include <opencv2/core/core.hpp>

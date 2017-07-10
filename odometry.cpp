@@ -70,6 +70,7 @@ double Odometry::getAbsoluteScale(int frame_id, char *address, Point2d &gt, Poin
     ifstream myfile (address);
     double x =0, y=0, z = 0;
     double x_prev, y_prev, z_prev;
+    double r11, r32, r33, r31, r21;
     if (myfile.is_open())
     {
         while (( getline (myfile,line) ) && (i<=frame_id))
@@ -83,7 +84,14 @@ double Odometry::getAbsoluteScale(int frame_id, char *address, Point2d &gt, Poin
                 in >> z ;
                 if (j==7) y=z;
                 if (j==3)  x=z;
+                if (j== 0) r11 = z;
+                if (j== 4) r21 = z;
+                if (j== 8) r31 = z;
+                if (j== 9) r32 = z;
+                if (j== 10) r33 = z;
             }
+
+
 
             i++;
         }
@@ -102,8 +110,15 @@ double Odometry::getAbsoluteScale(int frame_id, char *address, Point2d &gt, Poin
             (int)(z_prev*rot[1][0]+x_prev*rot[1][1])+350); //Ponto rotacionado e transladado
 
     //  gt = Point2d(x_prev+150, z_prev+350);
-    return sqrt((x-x_prev)*(x-x_prev) + (y-y_prev)*(y-y_prev) + (z-z_prev)*(z-z_prev)) ;
 
+    //COMO É A MATRIZ DO GT
+    //r11 r12 r13 t1 r21 r22 r23 t2 r31 r32 r33 t3
+    // 0   1   2  3   4   5   6   7  8   9   10  11
+//    cout<<"YAW:"<<atan2(r32, r33)*180/M_PI<<endl;
+//    cout<<"PITCH:"<<atan2(-r31, sqrt(pow(r32,2)+pow(r33,2)))*180/M_PI<<endl;
+//    cout<<"ROLL:"<<atan2(r21, r11)*180/M_PI<<endl<<endl;
+
+    return sqrt((x-x_prev)*(x-x_prev) + (y-y_prev)*(y-y_prev) + (z-z_prev)*(z-z_prev)) ;
 }
 
 //Feature Tracking usando OpticalFlow
@@ -149,6 +164,8 @@ bool Odometry::getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher 
 
     Point2d pp = Point2d(607.1928, 185.2157);
     float focal = 718.8560;
+
+    Ptr<Feature2D> orb = ORB::create(600);
 
 
     if(type_matcher == KNN){
@@ -198,7 +215,13 @@ bool Odometry::getTransformationsBetween2Frames(Mat frame1, Mat frame2, Matcher 
                 data+=step;
             }
         }
-        //------------------
+//        //------------------
+//        orb->detectAndCompute(frame1, noArray(), kps1, desc1, false);
+////        Pegando matchings mais confiáveis
+//        for (int i = 0; i < kps1.size(); ++i) {
+//            KeyPoint k  = kps1[i];
+//            points1.push_back(k.pt);
+//        }
         featureTrackingOpticalFlow(frame1, frame2, points1, points2, status);
     }
     if(points1.size() < 10){
@@ -244,8 +267,9 @@ Mat Odometry::meanRotation(Mat R, Mat R_hist){
 
 void Odometry::Run(){
     bool result;
+    int cont = 0;
     while(1){
-        cout<<"TESTE run odometry"<<endl;
+//        cout<<"TESTE run odometry"<<endl;
         if(!cap.isOpened()){
             cout<<"Erro ao abrir o video. Verifique o endereco informado"<<endl;
         }
@@ -299,8 +323,10 @@ void Odometry::Run(){
                 t = t + scale*(R*t_f);
                 R = R_f*R;
 
-                cout<<"NUM_FRAME:"<<num_frame<<endl;
-                cout<<"T:"<<t<<endl<<" R:"<<R<<endl;
+
+
+//                cout<<"NUM_FRAME:"<<num_frame<<endl;
+//                cout<<"T:"<<t<<endl<<" R:"<<R<<endl;
 
                 cont_hist++; //Atualizando a quantidade de frames pra depois calcular o hist
 
@@ -398,6 +424,9 @@ void Odometry::Run(){
             }
             alltrajectory.push_back(Point3f(t.at<double>(0), t.at<double>(1), t.at<double>(2)));
             alltrajGT.push_back(gt3d);
+            cout<<cont++<<" ";
+            cout<<"T:"<<t<<" ";
+            cout<<"GT:"<<gt3d<<" ";
             euclidianDistance(gt3d, alltrajectory.at(alltrajectory.size()-1));
 
             float rot[2][2] = {cos(80),-sin(80),sin(80),cos(80)}; //Rotacao 2D do ponto da trajetoria
@@ -458,5 +487,8 @@ void Odometry::initialize(){
 void Odometry::euclidianDistance(Point3f gt, Point3f est){
     float er;
     er = sqrt(pow(gt.x-est.x,2) + pow(gt.y-est.y,2) + pow(gt.z-est.z,2));
+    cout<<"Error:"<<er<<endl;
     error.push_back(er);
 }
+
+
