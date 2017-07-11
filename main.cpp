@@ -17,6 +17,12 @@ using namespace cv;
 
 enum Matcher {KNN, Optical};
 
+template <class charT, charT sep>
+class punct_facet: public std::numpunct<charT> {
+protected:
+    charT do_decimal_point() const { return sep; }
+};
+
 double dist = 0;
 double totaldist = 0;
 Mat edges;
@@ -177,6 +183,7 @@ void featureDetection(Mat img_1, vector<Point2f>& points1)	{   //USA FAST
 }
 
 int main(int argc, char *argv[]) {
+    cerr.imbue(locale(cerr.getloc(), new punct_facet<char, ','>));
     /*-------COMANDOS----------
     * argv[1] - endereco do video
     * argv[2] - endereco do ground-truth
@@ -347,9 +354,9 @@ int main(int argc, char *argv[]) {
 
         //Medindo o erro
         if (validFrame) {
-            dist += euclidianDistance(pg2, p1);
+            dist = euclidianDistance(pg2, p1);
             totaldist += euclidianDistance(pg1, pg2);
-//            cerr << "Erro: " << dist << endl;
+            cerr << dist << endl;
 //            cerr << "Dist percorrida: " << totaldist << endl;
 //            cerr << "____________" << endl;
         }
@@ -366,19 +373,19 @@ int main(int argc, char *argv[]) {
             }
         }
         else {
-            for (int i = 0; i < points2.size(); ++i) {
-                Point2f p1 = points1[i];
-                Point2f p2 = points2[i];
-                circle(frame2, Point(p1.x, p1.y), 2, cvScalar(255,0,0),-1);
-                line(frame2, Point(p1.x, p1.y), Point(p2.x, p2.y),
-                     cvScalar(0,0,255), 1);
-                circle(frame2, Point(p2.x, p2.y), 2, cvScalar(0,255,0),-1);
-            }
+//            for (int i = 0; i < points2.size(); ++i) {
+//                Point2f p1 = points1[i];
+//                Point2f p2 = points2[i];
+//                circle(frame2, Point(p1.x, p1.y), 2, cvScalar(255,0,0),-1);
+//                line(frame2, Point(p1.x, p1.y), Point(p2.x, p2.y),
+//                     cvScalar(0,0,255), 1);
+//                circle(frame2, Point(p2.x, p2.y), 2, cvScalar(0,255,0),-1);
+//            }
         }
         imshow("trajetoria", traj);
         imshow("Frame t+1", frame2);
         int k = waitKey(1);
-        if(num_frame == 1000){
+        if(num_frame == 300){
             cap.release();
             cerr << "erro acc: " << dist << endl;
             cerr << "dist percorrida: " << totaldist << endl;
